@@ -60,7 +60,7 @@ def calculateFramePosition():
     # point (4) is pointing in the positive +x direction
     # calculate angle between reference frame and body frame
     alpha = np.arctan2(y[3]-y0, x[3]-x0)
-    #print(alpha*180/np.pi)
+    # print(alpha*180/np.pi)
 
     # transformation matrix, positive rotation around z-axis
     R_QI = np.array([[np.cos(alpha), +np.sin(alpha), 0],
@@ -89,7 +89,7 @@ def calculateFramePosition():
     ax.set_zlabel('z')
 
     # plot connecting lines to frame
-    if False:
+    if True:
         for i in range(noPoints):
             ax.plot3D([x0, x0+Q_vec[i, 0]], [y0, y0+Q_vec[i, 1]],
                       [z0, z0+Q_vec[i, 2]], 'k')
@@ -99,18 +99,19 @@ def calculateFramePosition():
         for i in range(noPoints):
             for k in range(noPoints):
                 if i != k:
-                    ax.plot3D([x0+I_vec[i, 0], x0+I_vec[k, 0]],
-                              [y0+I_vec[i, 1], y0+I_vec[k, 1]], [z0+I_vec[i, 2], z0+I_vec[k, 2]], 'c')
+                    ax.plot3D([x0+Q_vec[i, 0], x0+Q_vec[k, 0]],
+                              [y0+Q_vec[i, 1], y0+Q_vec[k, 1]], [z0+Q_vec[i, 2], z0+Q_vec[k, 2]], 'c')
 
     # plot body-fixed frame
-    ax.plot3D([x0, x0+Q_cx[0]*50], [y0, y0+Q_cx[1]*50],[z0, z0+Q_cx[2]*50], 'r', linewidth=2)
-    ax.plot3D([x0, x0+Q_cy[0]*50], [y0, y0+Q_cy[1]*50],[z0, z0+Q_cy[2]*50], 'g', linewidth=2)
-    ax.plot3D([x0, x0+Q_cz[0]*50], [y0, y0+Q_cz[1]*50],[z0, z0+Q_cz[2]*50], 'b', linewidth=2)
+    ax.plot3D([x0, x0+I_cx[0]*50], [y0, y0+I_cx[1]*50],
+              [z0, z0+I_cx[2]*50], 'r', linewidth=2)
+    ax.plot3D([x0, x0+I_cy[0]*50], [y0, y0+I_cy[1]*50],
+              [z0, z0+I_cy[2]*50], 'g', linewidth=2)
+    ax.plot3D([x0, x0+I_cz[0]*50], [y0, y0+I_cz[1]*50],
+              [z0, z0+I_cz[2]*50], 'b', linewidth=2)
 
-
-
+    # show resulting plot
     plt.show()
-
 
     # check if rigidtrans_func works as expected
     [R_QP, Q_t_PQ, Q_r_P] = rigidtrans_func(I_vec, Q_vec, np.ones(noPoints))
@@ -120,6 +121,8 @@ def calculateFramePosition():
     print(Q_t_PQ)
 
 # Calculate body fixed frame from measurement data
+
+
 def on_packet(packet):
     """ Callback function that is called everytime a data packet arrives from QTM """
 
@@ -134,8 +137,8 @@ def on_packet(packet):
 
         t = time.time()  # 0.003192 s per frame on laptop --> Raspberry Pi 4 ~ 16ms while openCV runs
         for i in range(9):
-            meas_vec[i, :] = np.array(
-                [markers[i][0], markers[i][1], markers[i][2]])
+            meas_vec[i, :] = [markers[i][0], markers[i][1], markers[i][2]]
+            print()
 
         [R_QP, Q_t_PQ, Q_r_P] = rigidtrans_func(
             meas_vec, Q_vec[0:9], np.ones(9))
@@ -168,9 +171,9 @@ def on_packet(packet):
 
         # transform into opencv screen coordinates  →x
         #                                          ↓y
-        
+
         # TODO: does this work??
-        R_SP = np.array([[0,-1,0],[1,0,0],[0,0,1]]) @ R_QP
+        R_SP = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ R_QP
 
         S_cx = R_SP @ I_cx
         S_cy = R_SP @ I_cy
@@ -222,6 +225,3 @@ if __name__ == "__main__":
     calculateFramePosition()
     asyncio.ensure_future(setup())
     asyncio.get_event_loop().run_forever()
-
-
-

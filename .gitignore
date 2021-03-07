@@ -1,9 +1,0 @@
-.vscode/
-QuadControl
-CMakeCache.txt
-CMakeF*
-Makefile
-__*
-cmake*
-qtm/
-.gitignore

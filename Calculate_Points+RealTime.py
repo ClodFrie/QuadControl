@@ -132,7 +132,7 @@ def on_packet(packet):
     # only handle packets in a set interval
     global t_act
     t = time.time()
-    if t > t_act + 0.025:  # 0.05 = 50ms
+    if t > t_act + 1/15:  # 0.05 = 50ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
@@ -203,7 +203,7 @@ def on_packet(packet):
         cv2.putText(img, '{} '.format(euler*180.0/np.pi), (5, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
-        cv2.putText(img, 'FPS: {} '.format(1/interval), (5, 480),
+        cv2.putText(img, 'FPS: {:0.2f} '.format(1/interval), (5, 480),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
 

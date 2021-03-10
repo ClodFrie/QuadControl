@@ -4,16 +4,13 @@
 #include <stdio.h>
 
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
+#include "../include/pid.h"
 #include "../include/quad.h"
 
 // P Controller for a hovering flight -- this should work at some point...
-int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) {
+int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, double actTime) {
     double g = 9.81;  // m/s^2
     double x_ddot, y_ddot;
-
-    // TODO: I_safeX, I_safeY need to be set automatically
-    double I_safeX = -575.61;  // mm
-    double I_safeY = -52.03;     // mm
 
     // START critical section
     double q4 = Quad->roll;
@@ -30,11 +27,21 @@ int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) 
     double I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
     // printf("Qx0:%f, Qy0:%f, Qz0:%f", Qx0, Qy0, Qz0);
 
-    double maxAngle = 2.5 * M_PI / 180.0;  // in grad to rad
+    double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
-    // only temporary for hovering
-    x_ddot = (I_safeX - I_x) / 125;
-    y_ddot = (I_safeY - I_y) / 125;
+    // calculate controller output
+    updatePID(pidx, actTime, (I_safeX - I_x)/10000.0);
+    updatePID(pidy, actTime, (I_safeY - I_y)/10000.0);
+
+    // asin is only defined for range [-1,1] therfore limitting is needed
+    x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
+    x_ddot = x_ddot > -1 ? x_ddot : -1;
+
+    y_ddot = pidy->currentValue < 1 ? pidy->currentValue : 1;
+    y_ddot = y_ddot > -1 ? y_ddot : -1;
+
+    printf("x_ddot:%lf,\ty_ddot:%lf",x_ddot,y_ddot);
+
 
     q6 = -q6;  // TODO: fix this -> q6 needs to be in inertial frame
 
@@ -62,11 +69,18 @@ int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) 
         send_cmd = 1;
     }
 
-    ctrl->yaw_delta = (int)(q6 * (scaling * 180.0 / M_PI));
-    ctrl->yaw_delta = ctrl->yaw_delta > 1000 ? 1000 : ctrl->yaw_delta;    // limit angles
-    ctrl->yaw_delta = ctrl->yaw_delta < -1000 ? -1000 : ctrl->yaw_delta;  // limit angles
+    int maxDelta = 5000;  // 10 degrees max
+    ctrl->yaw_d = 180 * 1000;
 
-    printf("I_x: %6.2f,\t I_y: %6.2f,\t I_z: %6.2f,\t snd_cmd: %1d,\t roll_cmd: %5d,\t pitch_cmd: %5d,\tyaw_meas: %5d,\t\n", I_x, I_y, I_z, send_cmd, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_delta);
+    int yaw_delta = ctrl->yaw_d - data.angle_yaw * 1000;
+
+    if (yaw_delta > maxDelta) {
+        ctrl->yaw_d = data.angle_yaw * 1000 + maxDelta;
+    } else if (yaw_delta < -maxDelta) {
+        ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
+    }
+
+    printf("I_x: %6.2f,\t I_y: %6.2f,\t I_z: %6.2f,\t snd_cmd: %1d,\t roll_cmd: %5d,\t pitch_cmd: %5d,\tyaw_cmd: %5d,\t\n", I_x, I_y, I_z, send_cmd, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
 
     ctrl->roll_d *= send_cmd;
     ctrl->pitch_d *= send_cmd;

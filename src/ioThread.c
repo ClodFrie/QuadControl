@@ -9,6 +9,7 @@
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/crc.h"
 #include "../include/hoveringFlight.h"
+#include "../include/pid.h"
 #include "../include/quad.h"
 #include "../include/threads.h"
 
@@ -31,6 +32,8 @@ enum STATES { IDLE,
               LANDING } state;
 // IMUC = IMU + Camera
 
+PID pidx, pidy;
+
 void* ioThread(void* vptr) {
     // cast pointer to QuadState type
     struct QuadState* Quadptr = (struct QuadState*)vptr;
@@ -52,9 +55,15 @@ void* ioThread(void* vptr) {
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
+    // initialize pid controller
+    // pidx = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
+    // pidy = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
+    initPID(&pidx,0.000000002, 0.0000040, 0.00025, 0.10, get_time_ms());
+    initPID(&pidy,0.000000002, 0.0000040, 0.00025, 0.10, get_time_ms());
+
     // write control parameters
-    // setParams(0.01, 0.01, -0.00209, -0.0, 0, 0); // saved on 08032021 as: meh ^^
-    setParams(0.01, 0.01, 0.03, -0.0, 0, 0);
+    // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller
+    setParams(0.008265, 0.00575, 0.006500, 0.0001250, 0, 0);
     while (sendParams(&ftHandle) != 0) {
         ;  // make sure that parameters have been received correctly
     }
@@ -65,14 +74,14 @@ void* ioThread(void* vptr) {
         double t1 = get_time_ms();
         // receive drone data
         requestData(&ftHandle);
-        printf("%5d,\t%3d\t", data.battery_voltage, data.HL_cpu_load);
+        printf("BAT:%5d,\tCPU:%3d,\tyaw:%3d,\t", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
         // TODO: print data, make logfile, make graphs ,...
 
         if (pthread_mutex_lock(&state_mutex) == 0) {  // TODO: mutex could be released faster
             // calculate desired movements
             switch (state) {
                 case HOVER:
-                    calculateHover(0.5, Quadptr, &ctrl);
+                    calculateHover(0.5, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy,get_time_ms());
                     break;
                 default:
                     printf("illegal state\n");
@@ -263,6 +272,7 @@ int openFTDI(FT_HANDLE* ftHandle) {
         printf("FT_Open(%d) failed, with error %d.\n", portNum, (int)ftStatus);
         printf("On Linux, lsmod can check if ftdi_sio (and usbserial) are present.\n");
         printf("If so, unload them using rmmod, as they conflict with ftd2xx.\n");
+        printf("run unload script: \"sudo ./unload_drivers\"\n");
         return -1;
         ;
     }

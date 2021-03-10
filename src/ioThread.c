@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <strings.h>  // for bzero
 #include <sys/time.h>
+#include <time.h>
 
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/crc.h"
@@ -11,42 +12,81 @@
 #include "../include/quad.h"
 #include "../include/threads.h"
 
+unsigned int crc0;
+
 // function prototypes
 int openFTDI(FT_HANDLE* ftHandle);
 int requestData(FT_HANDLE* ftHandle);
 int sendCmd(FT_HANDLE* ftHandle);
 int sendParams(FT_HANDLE* ftHandle);
 double get_time_ms();
+void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
+
+enum STATES { IDLE,
+              TAKEOFF,
+              HOVER,
+              RECTANGULAR_TRAJECTORY,
+              IMUC_HOVER,
+              IMUC_ONLINE_TRAJECTORY,
+              LANDING } state;
+// IMUC = IMU + Camera
 
 void* ioThread(void* vptr) {
+    // cast pointer to QuadState type
+    struct QuadState* Quadptr = (struct QuadState*)vptr;
+
+    // create ftdi handle
     FT_HANDLE ftHandle = NULL;
+
+    // define starting state as IDLE
+    state = IDLE;
 
     // zero all variables
     bzero(&data, sizeof(data));
     bzero(&ctrl, sizeof(ctrl));
     bzero(&params, sizeof(params));
 
+    crc0 = crc8(0, NULL, 0);
+
     // open FTDI device
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
-
     // write control parameters
-    sendParams(&ftHandle);
+    // setParams(0.01, 0.01, -0.00209, -0.0, 0, 0); // saved on 08032021 as: meh ^^
+    setParams(0.01, 0.01, 0.03, -0.0, 0, 0);
+    while (sendParams(&ftHandle) != 0) {
+        ;  // make sure that parameters have been received correctly
+    }
+    printf("[PARAM] received succesfully!\n");
 
-    if (1) {  // do forever
+    state = HOVER;
+    while (1) {  // do forever
+        double t1 = get_time_ms();
         // receive drone data
         requestData(&ftHandle);
-        
-        if (pthread_mutex_trylock(&state_mutex) == 0) {
+        printf("%5d,\t%3d\t", data.battery_voltage, data.HL_cpu_load);
+        // TODO: print data, make logfile, make graphs ,...
+
+        if (pthread_mutex_lock(&state_mutex) == 0) {  // TODO: mutex could be released faster
             // calculate desired movements
-            calculateHover(0.5, &Quad, &ctrl);
+            switch (state) {
+                case HOVER:
+                    calculateHover(0.5, Quadptr, &ctrl);
+                    break;
+                default:
+                    printf("illegal state\n");
+                    break;
+            }
             pthread_mutex_unlock(&state_mutex);
 
             // write control commands - only if new data has been calculated
+
+            ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
             sendCmd(&ftHandle);
         }
-        
+
+        printf("[T] %3.2lf\t", get_time_ms() - t1);
     }
 
     // free ressources
@@ -61,18 +101,15 @@ int requestData(FT_HANDLE* ftHandle) {
     DWORD bytesWritten = 0;
     DWORD bytesReceived = 0;
     DWORD bytesRead = 0;
-    double t1 = get_time_ms();
 
-    ftStatus = FT_Write(ftHandle, reqData, sizeof(reqData), &bytesWritten);
+    ftStatus = FT_Write(*ftHandle, reqData, sizeof(reqData), &bytesWritten);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
 
-    printf("%d bytes written.\n", (int)bytesWritten);
-
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (bytesReceived < sizeof(data)) {  // while not all bytes were received
-        ftStatus = FT_GetQueueStatus(ftHandle, &bytesReceived);
+        ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
             printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
@@ -81,27 +118,26 @@ int requestData(FT_HANDLE* ftHandle) {
 
         // periodically check for time out!
         if (get_time_ms() > endTime) {
-            printf("read timed out \n");
-            return 1;  // TODO: remove this statement
+            printf("[DATA] read timed out %lf \n", get_time_ms() - endTime);
             break;
         }
     }
     // Then copy D2XX's buffer to ours.
-    ftStatus = FT_Read(ftHandle, &data, sizeof(data), &bytesRead);
+    ftStatus = FT_Read(*ftHandle, &data, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
-
-    unsigned int crc = crc8(0, NULL, 0);
-    crc = crc8(crc, (unsigned char*)(&data), sizeof(data) - 1);
-    if (data.CRC == crc) {
-        printf("data: %d\n", data.test);
-    } else {
-        printf("[CRC ERROR]\n");
+    if (bytesRead != sizeof(data)) {  // incorrect data received
+        bzero(&data, sizeof(data));   // delete corrupted data
+        return 1;
     }
 
-    printf("%f\n", get_time_ms() - t1);
+    unsigned char crc = crc8(crc0, (unsigned char*)(&data), sizeof(data) - 1);
+    if (data.CRC != crc) {
+        printf("[CRC ERROR] Receiving side\n");
+        bzero(&data, sizeof(data));  // delete corrupted data
+    }
     return 0;
 }
 
@@ -111,40 +147,51 @@ int sendParams(FT_HANDLE* ftHandle) {
     DWORD bytesWritten = 0;
     DWORD bytesReceived = 0;
     DWORD bytesRead = 0;
-    char answer[] = "noths recvd\n";
-    double t1 = get_time_ms();
+    char str[] = "noths recvd\n";
+    char* answer;
 
-    ftStatus = FT_Write(ftHandle, sendParams, sizeof(sendParams), &bytesWritten);
+    ftStatus = FT_Write(*ftHandle, sendParams, sizeof(sendParams), &bytesWritten);
+    if (ftStatus != FT_OK) {
+        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+    }
+    ftStatus = FT_Write(*ftHandle, &params, sizeof(params), &bytesWritten);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
 
-    printf("%d bytes written.\n", (int)bytesWritten);
-
     double endTime = get_time_ms() + MS_TIMEOUT;
-    while (bytesReceived < sizeof(answer)) {  // while not all bytes were received
-        ftStatus = FT_GetQueueStatus(ftHandle, &bytesReceived);
+    while (bytesReceived < sizeof(str)) {  // while not all bytes were received
+        ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
             printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
             return 1;
         }
-
         // periodically check for time out!
         if (get_time_ms() > endTime) {
-            printf("read timed out \n");
-            return 1;  // TODO: remove this statement
+            printf("[PARAM] read timed out %lf \n", get_time_ms() - endTime);
             break;
         }
     }
+    answer = (unsigned char*)calloc(sizeof(char), bytesReceived);
+    if (answer == NULL) {
+        printf("[PARAM] malloc error");
+    }
     // Then copy D2XX's buffer to ours.
-    ftStatus = FT_Read(ftHandle, &answer, sizeof(answer), &bytesRead);
+    ftStatus = FT_Read(*ftHandle, answer, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
+    if (bytesRead != sizeof(str)) {
+        return 1;
+    }
+    if (bcmp(answer, "param recvd\n", sizeof(str)) != 0) {
+        printf("%s", answer);
+        return 1;
+    }
+    free(answer);
 
-    printf("%f\n", get_time_ms() - t1);
     return 0;
 }
 
@@ -154,19 +201,22 @@ int sendCmd(FT_HANDLE* ftHandle) {
     DWORD bytesWritten = 0;
     DWORD bytesReceived = 0;
     DWORD bytesRead = 0;
-    char answer[] = "noths recvd\n";
-    double t1 = get_time_ms();
+    char str[] = "noths recvd\n";
+    char* answer;
 
-    ftStatus = FT_Write(ftHandle, sendCmd, sizeof(sendCmd), &bytesWritten);
+    ftStatus = FT_Write(*ftHandle, sendCmd, sizeof(sendCmd), &bytesWritten);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
-
-    printf("%d bytes written.\n", (int)bytesWritten);
-
+    ftStatus = FT_Write(*ftHandle, &ctrl, sizeof(ctrl), &bytesWritten);
+    if (ftStatus != FT_OK) {
+        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+    }
+    // printf("bytesWritten :%d\n",bytesWritten);
     double endTime = get_time_ms() + MS_TIMEOUT;
-    while (bytesReceived < sizeof(answer)) {  // while not all bytes were received
-        ftStatus = FT_GetQueueStatus(ftHandle, &bytesReceived);
+
+    while (bytesReceived < sizeof(str)) {  // while not all bytes were received
+        ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
             printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
@@ -174,19 +224,29 @@ int sendCmd(FT_HANDLE* ftHandle) {
         }
         // periodically check for time out!
         if (get_time_ms() > endTime) {
-            printf("read timed out \n");
-            return 1;  // TODO: remove this statement
+            printf("[CMD] read timed out \n");
             break;
         }
     }
+    answer = (unsigned char*)calloc(sizeof(char), bytesReceived);
+    if (answer == NULL) {
+        printf("[CMD] malloc error");
+    }
     // Then copy D2XX's buffer to ours.
-    ftStatus = FT_Read(ftHandle, &answer, sizeof(answer), &bytesRead);
+    ftStatus = FT_Read(*ftHandle, answer, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
         printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
+    if (bytesRead != sizeof(str)) {
+        return 1;
+    }
+    if (bcmp(answer, "comms recvd\n", sizeof(str)) != 0) {
+        printf("%s", answer);
+        return 1;
+    }
 
-    printf("%f\n", get_time_ms() - t1);
+    free(answer);
     return 0;
 }
 
@@ -196,11 +256,6 @@ int openFTDI(FT_HANDLE* ftHandle) {
     int driverVersion = 0;
     int baudRate = 57600;  // fixed for device - could theoretically be set higher
     FT_STATUS ftStatus;
-
-    // unload linux drivers
-    printf("Unload linux drivers\n");
-    system("sudo rmmod ftdi_sio");
-    system("sudo rmmod usbserial");
 
     printf("Opening FTDI device %d.\n", portNum);
     ftStatus = FT_Open(portNum, ftHandle);
@@ -269,4 +324,16 @@ double get_time_ms() {
     struct timeval t;
     gettimeofday(&t, NULL);
     return (t.tv_sec + (t.tv_usec / 1000000.0)) * 1000.0;
+}
+
+void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height) {
+    params.kP_pos = kP_pos;
+    params.kD_pos = kD_pos;
+
+    params.kP_yaw = kP_yaw;
+    params.kD_yaw = kD_yaw;
+
+    params.kP_height = kP_height;
+    params.kD_height = kD_height;
+    params.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
 }

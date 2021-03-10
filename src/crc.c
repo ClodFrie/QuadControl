@@ -44,7 +44,7 @@ static unsigned char const crc8_table[] = {
 // calculation of a CRC a chunk at a time, using the previously returned value
 // for the next seed. If data is NULL, then return the initial seed. See the
 // test code for an example of the proper usage.
-unsigned crc8(unsigned crc, unsigned char const *data, size_t len) {
+unsigned char crc8(unsigned char crc, unsigned char const *data, size_t len) {
     if (data == NULL)
         return 0;
     crc &= 0xff;
@@ -58,7 +58,7 @@ unsigned crc8(unsigned crc, unsigned char const *data, size_t len) {
 // need a table, and which can be used to generate crc8_table[]. Entry k in the
 // table is the CRC-8 of the single byte k, with an initial crc value of zero.
 // 0xb2 is the bit reflection of 0x4d, the polynomial coefficients below x^8.
-unsigned crc8_slow(unsigned crc, unsigned char const *data, size_t len) {
+unsigned char crc8_slow(unsigned char crc, unsigned char const *data, size_t len) {
     if (data == NULL)
         return 0;
     crc = ~crc & 0xff;

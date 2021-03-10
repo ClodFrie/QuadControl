@@ -11,7 +11,6 @@ struct QuadState{
     double yaw;
  
 };
-extern struct QuadState Quad;
 
 
 #endif

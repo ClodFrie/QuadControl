@@ -1,7 +1,7 @@
 #include "../include/hoveringFlight.h"
 
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/quad.h"
@@ -12,8 +12,8 @@ int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) 
     double x_ddot, y_ddot;
 
     // TODO: I_safeX, I_safeY need to be set automatically
-    double I_safeX = 503.91;  // mm
-    double I_safeY = 10.35;   // mm
+    double I_safeX = -575.61;  // mm
+    double I_safeY = -52.03;     // mm
 
     // START critical section
     double q4 = Quad->roll;
@@ -30,21 +30,20 @@ int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) 
     double I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
     // printf("Qx0:%f, Qy0:%f, Qz0:%f", Qx0, Qy0, Qz0);
 
-    // TODO: unbodge
-    I_x = -I_x;
-
-    double maxAngle = 0.064 * M_PI / 180.0;  // in grad to rad
+    double maxAngle = 2.5 * M_PI / 180.0;  // in grad to rad
 
     // only temporary for hovering
-    x_ddot = (I_safeX - I_x) / 5000.0;
-    y_ddot = (I_safeY - I_y) / 5000.0;
+    x_ddot = (I_safeX - I_x) / 125;
+    y_ddot = (I_safeY - I_y) / 125;
 
-    // calculate angles in order to move quadrocopter in xy-plane
+    q6 = -q6;  // TODO: fix this -> q6 needs to be in inertial frame
+
+    // calculate angles in order to move quadrocopter in KI_(xy)-plane
     double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
-    roll_d = roll_d > maxAngle ? maxAngle : roll_d;    // limit angles
-    roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;  // limit angles
+    double pitch_d = -asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
 
-    double pitch_d = asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
+    roll_d = roll_d > maxAngle ? maxAngle : roll_d;       // limit angles
+    roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;     // limit angles
     pitch_d = pitch_d > maxAngle ? maxAngle : pitch_d;    // limit angles
     pitch_d = pitch_d < -maxAngle ? -maxAngle : pitch_d;  // limit angles
 
@@ -60,10 +59,14 @@ int calculateHover(double height, struct QuadState* Quad, struct CONTROL* ctrl) 
     short send_cmd = 1;
     // disable during takeoff
     if (I_z < 400) {
-        send_cmd = 0;
+        send_cmd = 1;
     }
 
-    printf("I_x: %6.2f,\t I_y: %6.2f,\t I_z: %6.2f,\t snd_cmd: %1d,\t roll_cmd: %5d,\t pitch_cmd: %5d\n", I_x, I_y, I_z, send_cmd, ctrl->roll_d, ctrl->pitch_d);
+    ctrl->yaw_delta = (int)(q6 * (scaling * 180.0 / M_PI));
+    ctrl->yaw_delta = ctrl->yaw_delta > 1000 ? 1000 : ctrl->yaw_delta;    // limit angles
+    ctrl->yaw_delta = ctrl->yaw_delta < -1000 ? -1000 : ctrl->yaw_delta;  // limit angles
+
+    printf("I_x: %6.2f,\t I_y: %6.2f,\t I_z: %6.2f,\t snd_cmd: %1d,\t roll_cmd: %5d,\t pitch_cmd: %5d,\tyaw_meas: %5d,\t\n", I_x, I_y, I_z, send_cmd, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_delta);
 
     ctrl->roll_d *= send_cmd;
     ctrl->pitch_d *= send_cmd;

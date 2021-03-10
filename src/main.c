@@ -18,19 +18,20 @@ struct QuadState Quad;
 int main() {
     // intro message
     printf("Hello QuadControl\n");
+
     // make printfs immediate (no buffer)
-    setvbuf(stdout,NULL,_IONBF,0);
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     struct QuadState Quad;
 
     pthread_t p_ioThread, p_consoleThread, p_pipeThread;
 
     pthread_create(&p_ioThread, NULL, ioThread, &Quad);
-    pthread_create(&p_consoleThread, NULL, consoleThread, NULL);
+    // pthread_create(&p_consoleThread, NULL, consoleThread, NULL);
     pthread_create(&p_pipeThread, NULL, pipeThread, &Quad);
 
     pthread_join(p_ioThread, NULL);
-    pthread_join(p_consoleThread, NULL);
+    // pthread_join(p_consoleThread, NULL);
     pthread_join(p_pipeThread, NULL);  // TODO: After getting controller right, send position commands based on localization...
 }
 

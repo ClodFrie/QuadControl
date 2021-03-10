@@ -14,6 +14,7 @@ from numpy import matlib
 from rigidtrans import rigidtrans_func
 import time
 import cv2
+import sys 
 # --- qtm imports ---
 import asyncio
 import qtm
@@ -88,37 +89,39 @@ def calculateFramePosition():
     ax.set_ylabel('y')
     ax.set_zlabel('z')
 
-    # plot connecting lines to frame
-    if True:
-        for i in range(noPoints):
-            ax.plot3D([x0, x0+Q_vec[i, 0]], [y0, y0+Q_vec[i, 1]],
-                      [z0, z0+Q_vec[i, 2]], 'k')
+    # plot everything
+    if False: 
+        # plot connecting lines to frame
+        if True:
+            for i in range(noPoints):
+                ax.plot3D([x0, x0+I_vec[i, 0]], [y0, y0+I_vec[i, 1]],
+                        [z0, z0+I_vec[i, 2]], 'k')
 
-    # plot connecting lines for all points
-    if True:
-        for i in range(noPoints):
-            for k in range(noPoints):
-                if i != k:
-                    ax.plot3D([x0+Q_vec[i, 0], x0+Q_vec[k, 0]],
-                              [y0+Q_vec[i, 1], y0+Q_vec[k, 1]], [z0+Q_vec[i, 2], z0+Q_vec[k, 2]], 'c')
+        # plot connecting lines for all points
+        if True:
+            for i in range(noPoints):
+                for k in range(noPoints):
+                    if i != k:
+                        ax.plot3D([x0+I_vec[i, 0], x0+I_vec[k, 0]],
+                                [y0+I_vec[i, 1], y0+I_vec[k, 1]], [z0+I_vec[i, 2], z0+I_vec[k, 2]], 'c')
 
-    # plot body-fixed frame
-    ax.plot3D([x0, x0+I_cx[0]*50], [y0, y0+I_cx[1]*50],
-              [z0, z0+I_cx[2]*50], 'r', linewidth=2)
-    ax.plot3D([x0, x0+I_cy[0]*50], [y0, y0+I_cy[1]*50],
-              [z0, z0+I_cy[2]*50], 'g', linewidth=2)
-    ax.plot3D([x0, x0+I_cz[0]*50], [y0, y0+I_cz[1]*50],
-              [z0, z0+I_cz[2]*50], 'b', linewidth=2)
+        # plot body-fixed frame
+        ax.plot3D([x0, x0+Q_cx[0,0]*50], [y0, y0+Q_cx[1,0]*50],
+                [z0, z0+Q_cx[2,0]*50], 'r', linewidth=2)
+        ax.plot3D([x0, x0+Q_cy[0,0]*50], [y0, y0+Q_cy[1,0]*50],
+                [z0, z0+Q_cy[2,0]*50], 'g', linewidth=2)
+        ax.plot3D([x0, x0+Q_cz[0,0]*50], [y0, y0+Q_cz[1,0]*50],
+                [z0, z0+Q_cz[2,0]*50], 'b', linewidth=2)
 
-    # show resulting plot
-    plt.show()
+        # show resulting plot
+        plt.show()
 
-    # check if rigidtrans_func works as expected
-    [R_QP, Q_t_PQ, Q_r_P] = rigidtrans_func(I_vec, Q_vec, np.ones(noPoints))
+        # check if rigidtrans_func works as expected
+        [R_QP, Q_t_PQ, Q_r_P] = rigidtrans_func(I_vec, Q_vec, np.ones(noPoints))
 
-    # result is e-16, so it works as expected
-    print(R_QP - R_QI)
-    print(Q_t_PQ)
+        # result is e-16, so it works as expected
+        print(R_QP - R_QI)
+        print(Q_t_PQ)
 
 # Calculate body fixed frame from measurement data
 
@@ -129,7 +132,8 @@ def on_packet(packet):
     # only handle packets in a set interval
     global t_act
     t = time.time()
-    if t > t_act + 0.02:  # 0.02 = 20ms
+    if t > t_act + 0.025:  # 0.05 = 50ms
+        interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
             header, markers = packet.get_3d_markers()
@@ -138,13 +142,10 @@ def on_packet(packet):
         t = time.time()  # 0.003192 s per frame on laptop --> Raspberry Pi 4 ~ 16ms while openCV runs
         for i in range(9):
             meas_vec[i, :] = [markers[i][0], markers[i][1], markers[i][2]]
-            print()
 
         [R_QP, Q_t_PQ, Q_r_P] = rigidtrans_func(
             meas_vec, Q_vec[0:9], np.ones(9))
 
-        # # TODO: undo bodge !
-        # Q_t_PQ[0] = -Q_t_PQ[0]
 
         # euler angles of rotation matrix
         R_ = R_QP
@@ -202,14 +203,21 @@ def on_packet(packet):
         cv2.putText(img, '{} '.format(euler*180.0/np.pi), (5, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
-        print("{},{}".format(Q_t_PQ, euler))
+        cv2.putText(img, 'FPS: {} '.format(1/interval), (5, 480),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
+
+        print("{},{}".format(Q_t_PQ, euler))
+        sys.stdout.flush()
         cv2.imshow('Quadrotor State', img)
 
-        time.sleep((1/24)/10 - 0.001)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        #time.sleep((1/24) - 0.001)
+        wK = cv2.waitKey(1)
+        if wK & 0xFF == ord('q'):
             cv2.destroyAllWindows()
-            # import sys;sys.exit();
+        elif wK & 0xFF == ord('k'):
+            cv2.destroyAllWindows()
+            sys.exit()
 
 
 async def setup():

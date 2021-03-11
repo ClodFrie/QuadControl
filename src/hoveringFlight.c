@@ -8,7 +8,7 @@
 #include "../include/quad.h"
 
 // P Controller for a hovering flight -- this should work at some point...
-int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, double actTime) {
+int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
     double x_ddot, y_ddot;
 
@@ -30,8 +30,9 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
     // calculate controller output
-    updatePID(pidx, actTime, (I_safeX - I_x)/1000.0);
-    updatePID(pidy, actTime, (I_safeY - I_y)/1000.0);
+    updatePID(pidx, actTime, (I_safeX - I_x) / 1000.0);
+    updatePID(pidy, actTime, (I_safeY - I_y) / 1000.0);
+    updatePID(pidz, actTime, -(height - I_z) / 1000.0);
 
     // asin() is only defined for range [-1,1] therfore limitting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
@@ -40,7 +41,12 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     y_ddot = pidy->currentValue < 1 ? pidy->currentValue : 1;
     y_ddot = y_ddot > -1 ? y_ddot : -1;
 
-
+    // assign pidz to u_thrust only if positive
+    unsigned char thrust0 = 98; // feed forward to overcome gravity
+    double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 0;
+    ctrl->u_thrust = thrust < 200 ? thrust : 200;
+    // ctrl->u_thrust = thrust0;
+    printf("u_thrust:%u ", ctrl->u_thrust);
 
     q6 = -q6;  // TODO: fix this -> q6 needs to be in inertial frame
 

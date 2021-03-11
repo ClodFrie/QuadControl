@@ -27,6 +27,7 @@ enum STATES { IDLE,
               TAKEOFF,
               HOVER,
               RECTANGULAR_TRAJECTORY,
+              LEMNISCATE_TRAJECTORY,
               IMUC_HOVER,
               IMUC_ONLINE_TRAJECTORY,
               LANDING } state;
@@ -56,11 +57,11 @@ void* ioThread(void* vptr) {
         return NULL;
     }
     // initialize pid controller
-    initPID(&pidx, 0.7, 0.115, 0.6, 2, get_time_ms());
-    initPID(&pidy, 0.7, 0.115, 0.6, 2, get_time_ms());
+    initPID(&pidx, 0.7, 0.125, 0.6, 2, get_time_ms());
+    initPID(&pidy, 0.7, 0.125, 0.6, 2, get_time_ms());
 
     // initialize pid height controller
-    initPID(&pidz, 0.7, 0.105, 0.6, 2, get_time_ms());
+    initPID(&pidz, 2, 1, 0.25, 4, get_time_ms());
 
     // write control parameters
     // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller
@@ -82,7 +83,7 @@ void* ioThread(void* vptr) {
             // calculate desired movements
             switch (state) {
                 case HOVER:
-                    calculateHover(0.5, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy, get_time_ms());
+                    calculateHover(0.45, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 default:
                     printf("illegal state\n");

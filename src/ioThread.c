@@ -32,7 +32,7 @@ enum STATES { IDLE,
               LANDING } state;
 // IMUC = IMU + Camera
 
-PID pidx, pidy;
+PID pidx, pidy, pidz;
 
 void* ioThread(void* vptr) {
     // cast pointer to QuadState type
@@ -56,10 +56,11 @@ void* ioThread(void* vptr) {
         return NULL;
     }
     // initialize pid controller
-    // pidx = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
-    // pidy = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
-    initPID(&pidx,0.7, 0.105, 0.6, 2, get_time_ms());
-    initPID(&pidy,0.7, 0.105, 0.6, 2, get_time_ms());
+    initPID(&pidx, 0.7, 0.115, 0.6, 2, get_time_ms());
+    initPID(&pidy, 0.7, 0.115, 0.6, 2, get_time_ms());
+
+    // initialize pid height controller
+    initPID(&pidz, 0.7, 0.105, 0.6, 2, get_time_ms());
 
     // write control parameters
     // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller
@@ -81,7 +82,7 @@ void* ioThread(void* vptr) {
             // calculate desired movements
             switch (state) {
                 case HOVER:
-                    calculateHover(0.5, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy,get_time_ms());
+                    calculateHover(0.5, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy, get_time_ms());
                     break;
                 default:
                     printf("illegal state\n");

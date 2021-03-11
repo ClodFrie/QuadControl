@@ -13,8 +13,7 @@ typedef struct {
     double kP, kI, kD;
 } PID;
 
-void initPID(PID* pid, double kP, double kI, double kD, double windup, double prevTime) ;
+void initPID(PID* pid, double kP, double kI, double kD, double windup, double prevTime);
 void updatePID(PID* pid, double actTime, double currentValue);
-void closePID(PID* pid);
 
 #endif

@@ -58,12 +58,12 @@ void* ioThread(void* vptr) {
     // initialize pid controller
     // pidx = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
     // pidy = initPID(0.05, 0.0004, 0.25, 2, get_time_ms());
-    initPID(&pidx,0.000000002, 0.0000040, 0.00025, 0.10, get_time_ms());
-    initPID(&pidy,0.000000002, 0.0000040, 0.00025, 0.10, get_time_ms());
+    initPID(&pidx,0.0000002*0, 0.00004, 4*0, 0.9, get_time_ms());
+    initPID(&pidy,0.0000002*0, 0.00004, 4*0, 0.9, get_time_ms());
 
     // write control parameters
     // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller
-    setParams(0.008265, 0.00575, 0.006500, 0.0001250, 0, 0);
+    setParams(0.008265, 0.00575, 0.005500, 0.0001250, 0, 0);
     while (sendParams(&ftHandle) != 0) {
         ;  // make sure that parameters have been received correctly
     }

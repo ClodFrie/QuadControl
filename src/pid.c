@@ -13,12 +13,14 @@ void initPID(PID* pid, double kP, double kI, double kD, double windup, double pr
     pid->kI = kI;
     pid->kD = kD;
 
+    pid->currentValue = 0;
+    pid->intValue = 0;
+    pid->prevValue = 0;
 }
 void updatePID(PID* pid, double actTime, double currentValue) {
-    double windup = pid->windup;
-
     // calculate deltaT (Ta) --> because we have no real time system, this can change every loop iteration ;)
-    double Ta = (actTime - pid->prevTime);  // Ta in ms
+    double Ta = (actTime - pid->prevTime)/1000.0;  // Ta in s
+    printf("ta:%lf\n", Ta);
 
     // differential component
     double diff = (currentValue - pid->prevValue) / Ta;
@@ -27,6 +29,7 @@ void updatePID(PID* pid, double actTime, double currentValue) {
     double intValue = pid->currentValue + (pid->prevValue * Ta);
 
     // implement Anti-Windup
+    double windup = pid->windup;
     if (windup > 0) {
         intValue = intValue > windup ? windup : intValue;
         intValue = intValue < -windup ? -windup : intValue;
@@ -41,10 +44,4 @@ void updatePID(PID* pid, double actTime, double currentValue) {
     pid->currentValue = currentValue;
     pid->intValue = intValue;
     pid->prevTime = actTime;
-    
-    
-}
-
-void closePID(PID* pid) {
-    free(pid);
 }

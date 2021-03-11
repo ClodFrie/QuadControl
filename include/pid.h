@@ -5,7 +5,7 @@
 
 typedef struct {
     double prevTime;
-    double prevValue;
+    double prevInput;
     double intValue;
     double windup;
     double currentValue;
@@ -14,6 +14,6 @@ typedef struct {
 } PID;
 
 void initPID(PID* pid, double kP, double kI, double kD, double windup, double prevTime);
-void updatePID(PID* pid, double actTime, double currentValue);
+void updatePID(PID* pid, double actTime, double input);
 
 #endif

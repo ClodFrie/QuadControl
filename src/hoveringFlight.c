@@ -30,11 +30,9 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
     // calculate controller output
-    // updatePID(pidx, actTime, (I_safeX - I_x)/1000.0);
-    // updatePID(pidy, actTime, (I_safeY - I_y)/1000.0);
-    updatePID(pidx, actTime, (I_safeX - I_x)/10.0);
+    updatePID(pidx, actTime, (I_safeX - I_x)/1000.0);
+    updatePID(pidy, actTime, (I_safeY - I_y)/1000.0);
 
-    printf("x_ddot:%lf,\ty_ddot:%lf",pidx->currentValue,pidy->currentValue);
     // asin() is only defined for range [-1,1] therfore limitting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
     x_ddot = x_ddot > -1 ? x_ddot : -1;

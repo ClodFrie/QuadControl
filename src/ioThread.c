@@ -61,7 +61,7 @@ void* ioThread(void* vptr) {
     initPID(&pidy, 0.7, 0.125, 0.6, 2, get_time_ms());
 
     // initialize pid height controller
-    initPID(&pidz, 2, 1, 0.25, 4, get_time_ms());
+    initPID(&pidz, 2.2, 1.6, 0.35, 2, get_time_ms());
 
     // write control parameters
     // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller

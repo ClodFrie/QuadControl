@@ -115,28 +115,28 @@ int requestData(FT_HANDLE* ftHandle) {
 
     ftStatus = FT_Write(*ftHandle, reqData, sizeof(reqData), &bytesWritten);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
 
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (bytesReceived < sizeof(data)) {  // while not all bytes were received
         ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
-            printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
+            fprintf(stderr,"\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
             return 1;
         }
 
         // periodically check for time out!
         if (get_time_ms() > endTime) {
-            printf("[DATA] read timed out %lf \n", get_time_ms() - endTime);
+            fprintf(stderr,"[DATA] read timed out %lf \n", get_time_ms() - endTime);
             break;
         }
     }
     // Then copy D2XX's buffer to ours.
     ftStatus = FT_Read(*ftHandle, &data, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
     if (bytesRead != sizeof(data)) {  // incorrect data received
@@ -146,7 +146,7 @@ int requestData(FT_HANDLE* ftHandle) {
 
     unsigned char crc = crc8(crc0, (unsigned char*)(&data), sizeof(data) - 1);
     if (data.CRC != crc) {
-        printf("[CRC ERROR] Receiving side\n");
+        fprintf(stderr,"[CRC ERROR] Receiving side\n");
         bzero(&data, sizeof(data));  // delete corrupted data
     }
     return 0;
@@ -163,42 +163,42 @@ int sendParams(FT_HANDLE* ftHandle) {
 
     ftStatus = FT_Write(*ftHandle, sendParams, sizeof(sendParams), &bytesWritten);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
     ftStatus = FT_Write(*ftHandle, &params, sizeof(params), &bytesWritten);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
 
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (bytesReceived < sizeof(str)) {  // while not all bytes were received
         ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
-            printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
+            fprintf(stderr,"\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
             return 1;
         }
         // periodically check for time out!
         if (get_time_ms() > endTime) {
-            printf("[PARAM] read timed out %lf \n", get_time_ms() - endTime);
+            fprintf(stderr,"[PARAM] read timed out %lf \n", get_time_ms() - endTime);
             break;
         }
     }
     answer = (unsigned char*)calloc(sizeof(char), bytesReceived);
     if (answer == NULL) {
-        printf("[PARAM] malloc error");
+        fprintf(stderr,"[PARAM] malloc error");
     }
     // Then copy D2XX's buffer to ours.
     ftStatus = FT_Read(*ftHandle, answer, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
     if (bytesRead != sizeof(str)) {
         return 1;
     }
     if (bcmp(answer, "param recvd\n", sizeof(str)) != 0) {
-        printf("%s", answer);
+        fprintf(stderr,"%s", answer);
         return 1;
     }
     free(answer);
@@ -217,11 +217,11 @@ int sendCmd(FT_HANDLE* ftHandle) {
 
     ftStatus = FT_Write(*ftHandle, sendCmd, sizeof(sendCmd), &bytesWritten);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
     ftStatus = FT_Write(*ftHandle, &ctrl, sizeof(ctrl), &bytesWritten);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Write returned %d\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
     // printf("bytesWritten :%d\n",bytesWritten);
     double endTime = get_time_ms() + MS_TIMEOUT;
@@ -229,7 +229,7 @@ int sendCmd(FT_HANDLE* ftHandle) {
     while (bytesReceived < sizeof(str)) {  // while not all bytes were received
         ftStatus = FT_GetQueueStatus(*ftHandle, &bytesReceived);
         if (ftStatus != FT_OK) {
-            printf("\nFailure.  FT_GetQueueStatus returned %d.\n",
+            fprintf(stderr,"\nFailure.  FT_GetQueueStatus returned %d.\n",
                    (int)ftStatus);
             return 1;
         }
@@ -241,12 +241,12 @@ int sendCmd(FT_HANDLE* ftHandle) {
     }
     answer = (unsigned char*)calloc(sizeof(char), bytesReceived);
     if (answer == NULL) {
-        printf("[CMD] malloc error");
+        fprintf(stderr,"[CMD] malloc error");
     }
     // Then copy D2XX's buffer to ours.
     ftStatus = FT_Read(*ftHandle, answer, bytesReceived, &bytesRead);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_Read returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_Read returned %d.\n", (int)ftStatus);
         return 1;
     }
     if (bytesRead != sizeof(str)) {
@@ -271,10 +271,10 @@ int openFTDI(FT_HANDLE* ftHandle) {
     printf("Opening FTDI device %d.\n", portNum);
     ftStatus = FT_Open(portNum, ftHandle);
     if (ftStatus != FT_OK) {
-        printf("FT_Open(%d) failed, with error %d.\n", portNum, (int)ftStatus);
-        printf("On Linux, lsmod can check if ftdi_sio (and usbserial) are present.\n");
-        printf("If so, unload them using rmmod, as they conflict with ftd2xx.\n");
-        printf("run unload script: \"sudo ./unload_drivers\"\n");
+        fprintf(stderr,"FT_Open(%d) failed, with error %d.\n", portNum, (int)ftStatus);
+        fprintf(stderr,"On Linux, lsmod can check if ftdi_sio (and usbserial) are present.\n");
+        fprintf(stderr,"If so, unload them using rmmod, as they conflict with ftd2xx.\n");
+        fprintf(stderr,"run unload script: \"sudo ./unload_drivers\"\n");
         return -1;
         ;
     }
@@ -283,17 +283,17 @@ int openFTDI(FT_HANDLE* ftHandle) {
 
     ftStatus = FT_GetDriverVersion(*ftHandle, (LPDWORD)(&driverVersion));
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_GetDriverVersion returned %d.\n",
+        fprintf(stderr,"Failure.  FT_GetDriverVersion returned %d.\n",
                (int)ftStatus);
         return -1;
         ;
     }
 
-    printf("Using D2XX version %08x\n", driverVersion);
+    fprintf(stderr,"Using D2XX version %08x\n", driverVersion);
 
     ftStatus = FT_ResetDevice(*ftHandle);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_ResetDevice returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_ResetDevice returned %d.\n", (int)ftStatus);
         return -1;
         ;
     }
@@ -301,14 +301,14 @@ int openFTDI(FT_HANDLE* ftHandle) {
     // Flow control is needed for higher baud rates
     ftStatus = FT_SetFlowControl(*ftHandle, FT_FLOW_RTS_CTS, 0, 0);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_SetFlowControl returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_SetFlowControl returned %d.\n", (int)ftStatus);
         return -1;
         ;
     }
 
     ftStatus = FT_SetDataCharacteristics(*ftHandle, FT_BITS_8, FT_STOP_BITS_1, FT_PARITY_NONE);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_SetDataCharacteristics returned %d.\n",
+        fprintf(stderr,"Failure.  FT_SetDataCharacteristics returned %d.\n",
                (int)ftStatus);
         return -1;
         ;
@@ -316,7 +316,7 @@ int openFTDI(FT_HANDLE* ftHandle) {
 
     ftStatus = FT_SetBaudRate(*ftHandle, baudRate);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_SetBaudRate(%d) returned %d.\n",
+        fprintf(stderr,"Failure.  FT_SetBaudRate(%d) returned %d.\n",
                (int)baudRate,
                (int)ftStatus);
         return -1;
@@ -326,7 +326,7 @@ int openFTDI(FT_HANDLE* ftHandle) {
     // Assert Request-To-Send to prepare receiver
     ftStatus = FT_SetRts(*ftHandle);
     if (ftStatus != FT_OK) {
-        printf("Failure.  FT_SetRts returned %d.\n", (int)ftStatus);
+        fprintf(stderr,"Failure.  FT_SetRts returned %d.\n", (int)ftStatus);
         return -1;
         ;
     }

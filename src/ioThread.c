@@ -57,11 +57,11 @@ void* ioThread(void* vptr) {
         return NULL;
     }
     // initialize pid controller
-    initPID(&pidx, 0.9, 0.165, 0.65, 2, get_time_ms());
-    initPID(&pidy, 0.9, 0.195, 0.65, 2, get_time_ms());
+    initPID(&pidx, 0.95, 0.175, 0.65, 2, get_time_ms());
+    initPID(&pidy, 0.95, 0.205, 0.65, 2, get_time_ms());
 
     // initialize pid height controller
-    initPID(&pidz, 2.3, 1.6, 1.5, 2.5, get_time_ms());
+    initPID(&pidz, 2.8, 2, 2.3, 1.5, get_time_ms());
 
     // write control parameters
     // setParams(0, 0, 0, 0, 0, 0); // comparison to no controller
@@ -76,7 +76,7 @@ void* ioThread(void* vptr) {
         double t1 = get_time_ms();
         // receive drone data
         requestData(&ftHandle);
-        printf("BAT:%5d,\tCPU:%3d,\tyaw:%3d,\t", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
+        printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
         // TODO: print data, make logfile, make graphs ,...
 
         if (pthread_mutex_lock(&state_mutex) == 0) {  // TODO: mutex could be released faster
@@ -97,7 +97,7 @@ void* ioThread(void* vptr) {
             sendCmd(&ftHandle);
         }
 
-        printf("[T] %3.2lf\t", get_time_ms() - t1);
+        printf("[T],%3.2lf,", get_time_ms() - t1);
     }
 
     // free ressources

@@ -42,11 +42,11 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     y_ddot = y_ddot > -1 ? y_ddot : -1;
 
     // assign pidz to u_thrust only if positive
-    unsigned char thrust0 = 98; // feed forward to overcome gravity
+    unsigned char thrust0 = 98;  // feed forward to overcome gravity
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 0;
     ctrl->u_thrust = thrust < 200 ? thrust : 200;
     // ctrl->u_thrust = thrust0;
-    printf("u_thrust:%u ", ctrl->u_thrust);
+    printf("u_thrust,%u,", ctrl->u_thrust);
 
     q6 = -q6;  // TODO: fix this -> q6 needs to be in inertial frame
 
@@ -85,7 +85,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
         ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
     }
 
-    printf("I_x: %6.2f,\t I_y: %6.2f,\t I_z: %6.2f,\t snd_cmd: %1d,\t roll_cmd: %5d,\t pitch_cmd: %5d,\tyaw_cmd: %5d,\t\n", I_x, I_y, I_z, send_cmd, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", I_x, I_y, I_z, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
 
     ctrl->roll_d *= send_cmd;
     ctrl->pitch_d *= send_cmd;

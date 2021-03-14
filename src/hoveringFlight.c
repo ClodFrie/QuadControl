@@ -33,7 +33,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     updatePID(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0);
     updatePID(pidz, actTime, -(height - Quad->I_z) / 1000.0);
 
-    // asin() is only defined for range [-1,1] therfore limitting is needed
+    // asin() is only defined for range [-1,1] therefore limiting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
     x_ddot = x_ddot > -1 ? x_ddot : -1;
 

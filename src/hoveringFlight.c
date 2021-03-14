@@ -7,7 +7,7 @@
 #include "../include/pid.h"
 #include "../include/quad.h"
 
-// P Controller for a hovering flight -- this should work at some point...
+// PID Controller for a hovering flight -- this should work at some point...
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
     double x_ddot, y_ddot;
@@ -20,19 +20,18 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double Qx0 = Quad->Qx;
     double Qy0 = Quad->Qy;
     double Qz0 = Quad->Qz;
-    // END critical section
 
-    double I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
-    double I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
-    double I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
-    // printf("Qx0:%f, Qy0:%f, Qz0:%f", Qx0, Qy0, Qz0);
+    Quad->I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
+    Quad->I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
+    Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
+    // END critical section
 
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
     // calculate controller output
-    updatePID(pidx, actTime, (I_safeX - I_x) / 1000.0);
-    updatePID(pidy, actTime, (I_safeY - I_y) / 1000.0);
-    updatePID(pidz, actTime, -(height - I_z) / 1000.0);
+    updatePID(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0);
+    updatePID(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0);
+    updatePID(pidz, actTime, -(height - Quad->I_z) / 1000.0);
 
     // asin() is only defined for range [-1,1] therfore limitting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
@@ -68,11 +67,6 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
     ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));
 
-    short send_cmd = 1;
-    // disable during takeoff
-    if (I_z < 400) {
-        send_cmd = 1;
-    }
 
     int maxDelta = 5000;  // 10 degrees max
     ctrl->yaw_d = 180 * 1000;
@@ -85,10 +79,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
         ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
     }
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", I_x, I_y, I_z, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
-
-    ctrl->roll_d *= send_cmd;
-    ctrl->pitch_d *= send_cmd;
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
 
     return 0;
 }

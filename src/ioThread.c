@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <strings.h>  // for bzero
 
-
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/FTDI_helpers.h"
 #include "../include/crc.h"
@@ -15,8 +14,8 @@
 unsigned int crc0;
 
 // function prototypes
-FILE* initLogFile(char* fileName);
-int writeLogLine(FILE* fd,double deltaT,short bat, short cpu,short yaw,struct QuadState* Quadptr);
+FILE* initLogFile(char* mType);
+int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr);
 
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
@@ -41,7 +40,7 @@ void* ioThread(void* vptr) {
     FT_HANDLE ftHandle = NULL;
 
     // initialize log file
-    FILE* fd = initLogFile("../../Flight_Data/logTest.csv");
+    FILE* fd = initLogFile("IDLE.X");
 
     // define starting state as IDLE
     state = IDLE;
@@ -93,21 +92,23 @@ void* ioThread(void* vptr) {
                     printf("illegal state\n");
                     break;
             }
-            pthread_mutex_unlock(&state_mutex);
 
             // write control commands - only if new data has been calculated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
             sendCmd(&ftHandle);
+            // TODO: print data, make logfile, make graphs ,...
+            writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
+
+            pthread_mutex_unlock(&state_mutex);
         }
-        // TODO: print data, make logfile, make graphs ,...
-        writeLogLine(fd,get_time_ms()-t1,data.battery_voltage,data.HL_cpu_load,data.angle_yaw,Quadptr);
         printf("[T],%3.2lf,", get_time_ms() - t1);
     }
 
     // free ressources
-    if (ftHandle != NULL)
+    if (ftHandle != NULL) {
         FT_Close(ftHandle);
-
+        fclose(fd);
+    }
     return NULL;
 }
 
@@ -123,20 +124,32 @@ void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_
     params.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
 }
 
-FILE* initLogFile(char* fileName) {
-    // open file for writing and get file descriptor
-    FILE* fd = fopen(fileName, "w+");
+FILE* initLogFile(char* mType) {
+    // build file name from current time and mission type
+    char buffTime[1024];
+    char buffFileName[1024];
+    get_date(buffTime);
+    sprintf(buffFileName, "../../Flight_Data/%s_%s.csv", mType, buffTime);
+    printf("%s\n", buffFileName);
 
-    // if file not able to open return NULL
+    // open file for writing and get file descriptor
+    FILE* fd = fopen(buffFileName, "w+");
+
+    // not able to open, return NULL
     if (fd == NULL) {
         return NULL;
     }
 
     // write first line (header)
     fprintf(fd, "T;dT;BAT;CPU;YAW;U_THRUST;I_X;I_Y;I_Z;ROLL_CMD;PITCH_CMD;YAW_CMD\n");
+
+    // return file descriptor for use in other functions
+    return fd;
 }
 // write current data for every time step
-int writeLogLine(FILE* fd,double deltaT,short bat, short cpu,short yaw,struct QuadState* Quadptr) {
-    fprintf(fd, "%lf,%d;%d;%d;%u;%lf;%lf;%lf;%d;%d;%d\n",get_time_ms(), data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-    ctrl.u_thrust,Quadptr->I_x,Quadptr->I_y,Quadptr->I_z,ctrl.roll_d,ctrl.pitch_d,ctrl.yaw_d);
+int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
+    fprintf(fd, "%lf,%d;%d;%d;%u;%lf;%lf;%lf;%d;%d;%d\n", get_time_ms(), data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d);
+
+    fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]
 }

@@ -65,7 +65,7 @@ void* ioThread(void* vptr) {
     // write control parameters
     setParams(0.007265, 0.008265, 0.004500, 0.0011250, 0, 0);
     while (sendParams(&ftHandle) != 0) {
-        ;  // make sure that parameters have been received correctly
+        ;  // make sure that parameters have been received
     }
     printf("[PARAM] received succesfully!\n");
 
@@ -92,11 +92,12 @@ void* ioThread(void* vptr) {
                     printf("illegal state\n");
                     break;
             }
-
-            // write control commands - only if new data has been calculated
+            
+            // write control commands - only if new data has been generated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
             sendCmd(&ftHandle);
-            // TODO: print data, make logfile, make graphs ,...
+            
+            // write logfile
             writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
 
             // release mutex

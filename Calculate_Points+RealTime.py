@@ -45,11 +45,11 @@ def calculateFramePosition():
     y = data['y']
     z = data['z']
 
-    # position body fixed frame in the middle of the top 4 points
-    # center points are (1), (6), (8) and (5)
-    x0 = np.mean([x[0], x[5], x[7], x[4]])
-    y0 = np.mean([y[0], y[5], y[7], y[4]])
-    z0 = np.mean([z[0], z[5], z[7], z[4]])
+    # position body fixed frame in the middle of the 4 rotor points
+    # rotor points are (2), (3), (7) and (9)
+    x0 = np.mean([x[1], x[2], x[6], x[8]])
+    y0 = np.mean([y[1], y[2], y[6], y[8]])
+    z0 = np.mean([z[1], z[2], z[6], z[8]]) -70 # minus 70 because tracking points are on the propeller guard
 
     # calculate vectors to each point w.r.t. the new center
     I_vec = np.zeros((noPoints, 3))
@@ -89,7 +89,7 @@ def calculateFramePosition():
     ax.set_ylabel('y')
     ax.set_zlabel('z')
 
-    # plot everything
+    # plot something
     if False: 
         # plot connecting lines to frame
         if True:

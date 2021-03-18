@@ -41,7 +41,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     y_ddot = y_ddot > -1 ? y_ddot : -1;
 
     // assign pidz to u_thrust only if positive
-    unsigned char thrust0 = 98;  // feed forward to overcome gravity
+    unsigned char thrust0 = 94;  // feed forward to overcome gravity --> acquired from measurement data thrust0 = 102 
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 0;
     ctrl->u_thrust = thrust < 200 ? thrust : 200;
     // ctrl->u_thrust = thrust0;

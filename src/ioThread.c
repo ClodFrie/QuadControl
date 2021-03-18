@@ -69,7 +69,7 @@ void* ioThread(void* vptr) {
     }
     printf("[PARAM] received succesfully!\n");
 
-    state = IDLE;
+    state = HOVER;
     while (1) {  // do forever
         double t1 = get_time_ms();
         // receive drone data
@@ -99,6 +99,7 @@ void* ioThread(void* vptr) {
             // TODO: print data, make logfile, make graphs ,...
             writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
 
+            // release mutex
             pthread_mutex_unlock(&state_mutex);
         }
         printf("[T],%3.2lf,", get_time_ms() - t1);
@@ -141,14 +142,14 @@ FILE* initLogFile(char* mType) {
     }
 
     // write first line (header)
-    fprintf(fd, "T;dT;BAT;CPU;YAW;U_THRUST;I_X;I_Y;I_Z;ROLL_CMD;PITCH_CMD;YAW_CMD\n");
+    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL_CMD,PITCH_CMD,YAW_CMD\n");
 
     // return file descriptor for use in other functions
     return fd;
 }
 // write current data for every time step
 int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
-    fprintf(fd, "%lf,%d;%d;%d;%u;%lf;%lf;%lf;%d;%d;%d\n", get_time_ms(), data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d\n", get_time_ms(),deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
             ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]

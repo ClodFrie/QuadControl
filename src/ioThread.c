@@ -10,6 +10,8 @@
 #include "../include/pid.h"
 #include "../include/quad.h"
 #include "../include/threads.h"
+#include "../include/kalman.h"
+#include "../include/time_helper.h"
 
 unsigned int crc0;
 
@@ -57,10 +59,13 @@ void* ioThread(void* vptr) {
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
+
     // initialize pid controllers
     initPID(&pidx, 0.95, 0.175, 0.65, 2, get_time_ms());  // pidX
     initPID(&pidy, 0.95, 0.205, 0.65, 2, get_time_ms());  // pidY
     initPID(&pidz, 2.8, 2, 2.3, 1.5, get_time_ms());      // pidZ -- TODO: still not properly tuned
+
+    initKalman();
 
     // write control parameters
     setParams(0.007265, 0.008265, 0.004500, 0.0011250, 0, 0);
@@ -106,7 +111,7 @@ void* ioThread(void* vptr) {
         printf("[T],%3.2lf,", get_time_ms() - t1);
     }
 
-    // free ressources
+    // free resources
     if (ftHandle != NULL) {
         FT_Close(ftHandle);
         fclose(fd);
@@ -128,7 +133,7 @@ void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_
 
 FILE* initLogFile(char* mType) {
     // build file name from current time and mission type
-    char buffTime[1024];
+    char buffTime[100];
     char buffFileName[1024];
     get_date(buffTime);
     sprintf(buffFileName, "../../Flight_Data/%s_%s.csv", mType, buffTime);

@@ -82,9 +82,9 @@ void* ioThread(void* vptr) {
     // initPID(&pidz, 2.90, 2.25, 3.55, 10, get_time_ms());    // pidZ -- TODO: still not properly tuned
 
     // test parameters
-    initPID(&pidx, 0.15, 0.45, 3.25, 1.0 / 0.16, get_time_ms());  // pidX
-    initPID(&pidy, 0.19, 0.47, 3.25, 1.0 / 0.16, get_time_ms());  // pidY
-    initPID(&pidz, 10.50, 8.5, 40.55, 10, get_time_ms());        // pidZ -- TODO: still not properly tuned
+    initPID(&pidx, 0.2, 0.45, 0*3.25, 1.0 / 0.16, get_time_ms());  // pidX
+    initPID(&pidy, 0.2, 0.47, 0*3.25, 1.0 / 0.16, get_time_ms());  // pidY
+    initPID(&pidz, 5.50, 12.0, 0*40.55, 5, get_time_ms());        // pidZ -- TODO: still not properly tuned
 
     initKalman();
 

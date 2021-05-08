@@ -41,8 +41,11 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 
     // test TODO: how does this work (where does the equation come from)
+    // double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
+    // double pitch_d = -asin((-y_ddot * sin(q6) + x_ddot * cos(q6)) / cos(roll_d) / g);
+       
     double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
-    double pitch_d = -asin((-y_ddot * sin(q6) + x_ddot * cos(q6)) / cos(roll_d) / g);
+    double pitch_d = -asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
 
     roll_d = roll_d > maxAngle ? maxAngle : roll_d;       // limit angles
     roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;     // limit angles
@@ -69,7 +72,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
         ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
     }
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z,Quad->I_x_dot, Quad->I_y_dot, Quad->I_z_dot, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
 
     return 0;
 }

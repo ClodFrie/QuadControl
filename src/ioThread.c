@@ -1,4 +1,5 @@
 #include <ftd2xx.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>  // for bzero
@@ -7,10 +8,10 @@
 #include "../include/FTDI_helpers.h"
 #include "../include/crc.h"
 #include "../include/hoveringFlight.h"
+#include "../include/kalman.h"
 #include "../include/pid.h"
 #include "../include/quad.h"
 #include "../include/threads.h"
-#include "../include/kalman.h"
 #include "../include/time_helper.h"
 
 unsigned int crc0;
@@ -21,6 +22,7 @@ int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struc
 
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
+int updateState(struct QuadState* Quad);
 
 enum STATES { IDLE,
               TAKEOFF,
@@ -61,14 +63,33 @@ void* ioThread(void* vptr) {
     }
 
     // initialize pid controllers
-    initPID(&pidx, 0.95, 0.175, 0.65, 2, get_time_ms());  // pidX
-    initPID(&pidy, 0.95, 0.205, 0.65, 2, get_time_ms());  // pidY
-    initPID(&pidz, 2.8, 2, 2.3, 1.5, get_time_ms());      // pidZ -- TODO: still not properly tuned
+    // TODO: redone PID Controller: check before use
+    // Ziegler Nichols:
+    double Pkrit, Tkrit, Tn, Tv, Kp, TI, TD;
+    Pkrit = 5.65;
+    Kp = 0.6 * Pkrit;
+    Tkrit = 4.61;
+    Tn = 0.5 * Tkrit;
+    Tv = 0.125 * Tkrit;
+    TD = Tv * Kp;
+    TI = Tn / Kp;
+    double Kd = TD;
+    double Ki = 1.0 / TI;
+    // END Ziegler Nichols
+
+    // initPID(&pidx, 0.35, 0.20, 1.65, 8.50, get_time_ms());  // pidX
+    // initPID(&pidy, 0.35, 0.19, 1.56, 8.50, get_time_ms());  // pidY
+    // initPID(&pidz, 2.90, 2.25, 3.55, 10, get_time_ms());    // pidZ -- TODO: still not properly tuned
+
+    // test parameters
+    initPID(&pidx, 0.15, 0.45, 3.25, 1.0 / 0.16, get_time_ms());  // pidX
+    initPID(&pidy, 0.19, 0.47, 3.25, 1.0 / 0.16, get_time_ms());  // pidY
+    initPID(&pidz, 10.50, 8.5, 40.55, 10, get_time_ms());        // pidZ -- TODO: still not properly tuned
 
     initKalman();
 
     // write control parameters
-    setParams(0.007265, 0.008265, 0.004500, 0.0011250, 0, 0);
+    setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
     while (sendParams(&ftHandle) != 0) {
         ;  // make sure that parameters have been received
     }
@@ -81,7 +102,12 @@ void* ioThread(void* vptr) {
         requestData(&ftHandle);
         printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-        if (pthread_mutex_lock(&state_mutex) == 0) {  // TODO: mutex could be released faster
+        if (pthread_mutex_lock(&state_mutex) == 0) {
+            updateState(Quadptr);
+
+            // release mutex
+            pthread_mutex_unlock(&state_mutex);
+
             // calculate desired movements
             switch (state) {
                 case IDLE:
@@ -89,7 +115,7 @@ void* ioThread(void* vptr) {
                 case TAKEOFF:
                     break;
                 case HOVER:
-                    calculateHover(0.6, -583.89, -77.12, 4, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(600, -1878.92, 705.49, 4, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case RECTANGULAR_TRAJECTORY:
                     break;
@@ -97,16 +123,13 @@ void* ioThread(void* vptr) {
                     printf("illegal state\n");
                     break;
             }
-            
+
             // write control commands - only if new data has been generated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
             sendCmd(&ftHandle);
-            
+
             // write logfile
             writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
-
-            // release mutex
-            pthread_mutex_unlock(&state_mutex);
         }
         printf("[T],%3.2lf,", get_time_ms() - t1);
     }
@@ -155,8 +178,38 @@ FILE* initLogFile(char* mType) {
 }
 // write current data for every time step
 int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d\n", get_time_ms(),deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
             ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d);
 
-    fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]
+    fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
+}
+
+int updateState(struct QuadState* Quad) {
+    // START critical section
+    double q4 = Quad->roll;
+    double q5 = Quad->pitch;
+    double q6 = Quad->yaw;
+
+    double Qx0 = Quad->Qx;
+    double Qy0 = Quad->Qy;
+    double Qz0 = Quad->Qz;
+
+    Quad->I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
+    Quad->I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
+    Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
+
+    // state estimation: kalman filter
+    double states[6];
+    kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z);
+
+    // TODO: test before use
+    Quad->I_x = states[0];
+    Quad->I_x_dot = states[1];
+    Quad->I_y = states[2];
+    Quad->I_y_dot = states[3];
+    Quad->I_z = states[4];
+    Quad->I_z_dot = states[5];
+
+    // END critical section
+    return 0;
 }

@@ -132,7 +132,7 @@ def on_packet(packet):
     # only handle packets in a set interval
     global t_act
     t = time.time()
-    if t > t_act + 1/15:  # 0.05 = 50ms
+    if t > t_act + 0.05:  # 0.05 = 50ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
@@ -147,14 +147,18 @@ def on_packet(packet):
             meas_vec, Q_vec[0:9], np.ones(9))
 
 
+        
         # euler angles of rotation matrix
-        R_ = R_QP
+        R_IL = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+        R_ = R_IL @ R_QP
+
         euler = np.zeros(3)
 
-        euler[2] = -np.arctan2(R_[0, 1], R_[0, 0])
-        euler[0] = np.arctan2(-R_[1, 2], -R_[2, 2])
+        euler[0] = np.arctan2(R_[1, 2], R_[2, 2])
+        
+        euler[2] = np.arctan2(-R_[0, 1], R_[0, 0])
 
-        euler[1] = np.arctan2(R_[0, 2], -R_[0, 1]/np.sin(euler[2]))
+        euler[1] = np.arctan2(R_[0, 2], R_[0, 0]/np.cos(euler[2]))
 
         # Creating a gray image with 3 x
         # channels RGB and unsigned int datatype

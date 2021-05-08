@@ -13,7 +13,10 @@ struct QuadState {
 
     // Inertial Frame
     double I_x, I_y, I_z;
-    double I_x_dot, I_y_dot, I_z_dot;
+
+    // Inertial Frame filtered
+    double I_x_kal, I_y_kal, I_z_kal;
+    double I_x_dot_kal, I_y_dot_kal, I_z_dot_kal;
 };
 
 #endif

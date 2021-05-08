@@ -15,9 +15,13 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
-    updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0, -Quad->I_x_dot / 1000.0);
-    updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0, -Quad->I_y_dot / 1000.0);
-    updatePID_statespace(pidz, actTime, (height - Quad->I_z) / 1000.0, -Quad->I_z_dot / 1000.0);
+    // updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
+    // updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
+    // updatePID_statespace(pidz, actTime, (height - Quad->I_z) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
+
+    updatePID(pidx, actTime, (I_safeX - Quad->I_x)/1000.0);
+    updatePID(pidy, actTime, (I_safeY - Quad->I_y)/1000.0);
+    updatePID(pidz, actTime, (height - Quad->I_z)/1000.0);
 
     // asin() is only defined for range [-1,1] therefore limiting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
@@ -28,7 +32,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 102
 
-    unsigned char thrust0 = /*m * (g - z_ddot)*/  92 / (cos(Quad->roll) * cos(Quad->pitch)); // TODO: get second derivative
+    unsigned char thrust0 = /*m * (g - z_ddot)*/ 94;/* / (cos(Quad->roll) * cos(Quad->pitch)); */ // TODO: get second derivative
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
@@ -43,7 +47,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // test TODO: how does this work (where does the equation come from)
     // double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
     // double pitch_d = -asin((-y_ddot * sin(q6) + x_ddot * cos(q6)) / cos(roll_d) / g);
-       
+
     double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
     double pitch_d = -asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
 
@@ -72,7 +76,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
         ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
     }
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z,Quad->I_x_dot, Quad->I_y_dot, Quad->I_z_dot, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll_cmd,%5d,pitch_cmd,%5d,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, ctrl->roll_d, ctrl->pitch_d, ctrl->yaw_d);
 
     return 0;
 }

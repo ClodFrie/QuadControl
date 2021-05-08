@@ -82,11 +82,16 @@ void* ioThread(void* vptr) {
     // initPID(&pidz, 2.90, 2.25, 3.55, 10, get_time_ms());    // pidZ -- TODO: still not properly tuned
 
     // test parameters
-    initPID(&pidx, 0.2, 0.45, 0*3.25, 1.0 / 0.16, get_time_ms());  // pidX
-    initPID(&pidy, 0.2, 0.47, 0*3.25, 1.0 / 0.16, get_time_ms());  // pidY
-    initPID(&pidz, 5.50, 12.0, 0*40.55, 5, get_time_ms());        // pidZ -- TODO: still not properly tuned
+    // initPID(&pidx, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
+    // initPID(&pidy, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
+    // initPID(&pidz, 5.50, 12.0, 0 * 40.55, 5, get_time_ms());     // pidZ -- TODO: still not properly tuned
 
     initKalman();
+
+    //  without kalman
+    initPID(&pidx, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
+    initPID(&pidy, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
+    initPID(&pidz, 5, 3, 0.25, 10, get_time_ms());         // pidZ
 
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
@@ -203,12 +208,12 @@ int updateState(struct QuadState* Quad) {
     kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z);
 
     // TODO: test before use
-    Quad->I_x = states[0];
-    Quad->I_x_dot = states[1];
-    Quad->I_y = states[2];
-    Quad->I_y_dot = states[3];
-    Quad->I_z = states[4];
-    Quad->I_z_dot = states[5];
+    Quad->I_x_kal = states[0];
+    Quad->I_x_dot_kal = states[1];
+    Quad->I_y_kal = states[2];
+    Quad->I_y_dot_kal = states[3];
+    Quad->I_z_kal = states[4];
+    Quad->I_z_dot_kal = states[5];
 
     // END critical section
     return 0;

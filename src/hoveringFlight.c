@@ -10,14 +10,20 @@
 // PID Controller for a hovering flight -- this should work at some point...
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
-    double m = 1.6;   // kg
+    double m = 1.2;  // "kg"
     double x_ddot, y_ddot;
 
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
-    updatePID(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0);
-    updatePID(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0);
-    updatePID(pidz, actTime, (height - Quad->I_z) / 1000.0);
+    // standard
+    // updatePID(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0);
+    // updatePID(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0);
+    // updatePID(pidz, actTime, (height - Quad->I_z) / 1000.0);
+
+    // kalman
+    updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x_kal) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
+    updatePID_statespace(pidz, actTime, (height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 
     // asin() is only defined for range [-1,1] therefore limiting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
@@ -26,9 +32,16 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     y_ddot = pidy->currentValue < 1 ? pidy->currentValue : 1;
     y_ddot = y_ddot > -1 ? y_ddot : -1;
 
-    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 102
+    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
 
-    unsigned char thrust0 = /*m * (g - z_ddot)*/ 102;/* / (cos(Quad->roll) * cos(Quad->pitch));*/  // TODO: get second derivative
+    // double C_T = 8.5041e-4;
+    // double pow = 7.0/4.0;
+    // double u_equi = exp((-0.2e1 * log(0.2e1) + log((double) ((g-Quad->I_z_ddot_kal/1000.0) * m / C_T))) / pow) / (cos(Quad->roll) * cos(Quad->pitch));  // paper: HUBER et al.;
+    unsigned char thrust0 = 104; 
+    if (thrust0 > 110) {// limit to sane values
+        thrust0 = 110;
+    }
+    
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;

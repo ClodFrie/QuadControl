@@ -43,55 +43,35 @@ void* ioThread(void* vptr) {
     // cast pointer to QuadState type
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
+    // define starting state as INIT
+    state = INIT;
+
     // create ftdi handle
     FT_HANDLE ftHandle = NULL;
 
     // initialize log file
     FILE* fd = initLogFile("IDLE.X");
 
-    // define starting state as INIT
-    state = INIT;
-
-    // initialize crc0
-    unsigned char crc0 = crc8(0, NULL, 0);  // TODO: move this somewhere more intelligent
-
+    // open FTDI device
+    if (openFTDI(&ftHandle) < 0) {
+        return NULL;
+    }
     // zero all variables
     bzero(&data, sizeof(data));
     bzero(&ctrl, sizeof(ctrl));
     bzero(&params, sizeof(params));
 
-    // open FTDI device
-    if (openFTDI(&ftHandle) < 0) {
-        return NULL;
-    }
+    // initialize crc0
+    unsigned char crc0 = crc8(0, NULL, 0);  // TODO: move this somewhere more intelligent
 
-    // initialize pid controllers
-    // TODO: redone PID Controller: check before use
-    // Ziegler Nichols:
-    double Pkrit, Tkrit, Tn, Tv, Kp, TI, TD;
-    Pkrit = 5.65;
-    Kp = 0.6 * Pkrit;
-    Tkrit = 4.61;
-    Tn = 0.5 * Tkrit;
-    Tv = 0.125 * Tkrit;
-    TD = Tv * Kp;
-    TI = Tn / Kp;
-    double Kd = TD;
-    double Ki = 1.0 / TI;
-    // END Ziegler Nichols
-
+    // initialize kalman filter
     initKalman();  // TODO: not working, why??
 
-    //  without kalman
-    initPID(&pidx, 0.85, 0.25, 0.85, 1.0 / 0.16, get_time_ms());  // pidX
-    initPID(&pidy, 0.85, 0.25, 0.85, 1.0 / 0.16, get_time_ms());  // pidY
+    // TODO: implement start trajectory logic
+    // int startX = 0;
+    // int startY = 0;
 
-    // pidz for takeoff
-    initPID(&pidz, 0, 3.5, 3.5, 10, get_time_ms());  // pidZ
-
-    // pidz for hovering
-    initPID(&pidz, 2, 0.75, 3.5, 10, get_time_ms());  // pidZ
-
+    double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
     while (sendParams(&ftHandle) != 0) {
@@ -100,7 +80,7 @@ void* ioThread(void* vptr) {
     printf("[PARAM] received succesfully!\n");
 
     while (1) {  // do forever
-        double t1 = get_time_ms();
+
         // receive drone data
         requestData(&ftHandle);
         printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
@@ -112,22 +92,34 @@ void* ioThread(void* vptr) {
             pthread_mutex_unlock(&state_mutex);
 
             // calculate desired movements
+            printf("st: %d,", state);
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
                     if (Quadptr->I_z >= 0) {
-                        state == IDLE;
+                        //  with kalman
+                        initPID(&pidx, 6.2, 0.75, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
+                        initPID(&pidy, 4.5, 0.35, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
+
+                        // pidz for takeoff
+                        // initPID(&pidz, 0, 3.5, 3.5, 10, get_time_ms());  // pidZ
+
+                        // pidz for hovering
+                        initPID(&pidz, 2.7, 0.95, 4.3, 10, get_time_ms());  // pidZ
+
+                        state = IDLE;  // change active state to idle
                     }
                     break;
                 case IDLE:  // wait for some kind of start signal
 
                     // currently there is no idle state
-                    state == TAKEOFF;
+                    state = TAKEOFF;
                     break;
                 case TAKEOFF:
-                    calculateHover(600, -1878.92, 705.49, 0, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    // currently there is no takeoff state
+                    state = HOVER;
                     break;
                 case HOVER:
-                    if (Quadptr->I_z < 300) {
+                    if (Quadptr->I_z < 400) {
                         calculateHover(600, -1878.92, 705.49, 0, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     } else {
                         calculateHover(600, -1878.92, 705.49, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
@@ -148,6 +140,7 @@ void* ioThread(void* vptr) {
             writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
         }
         printf("[T],%3.2lf,", get_time_ms() - t1);
+        t1 = get_time_ms();
     }
 
     // free resources
@@ -215,16 +208,22 @@ int updateState(struct QuadState* Quad) {
     Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
 
     // state estimation: kalman filter
-    double states[6];
+    double states[12];
     kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z);
 
     // TODO: test before use
     Quad->I_x_kal = states[0];
     Quad->I_x_dot_kal = states[1];
+    Quad->I_x_ddot_kal = states[2];
+    Quad->I_x_dddot_kal = states[3];
     Quad->I_y_kal = states[4];
     Quad->I_y_dot_kal = states[5];
+    Quad->I_y_ddot_kal = states[6];
+    Quad->I_y_dddot_kal = states[7];
     Quad->I_z_kal = states[8];
     Quad->I_z_dot_kal = states[9];
+    Quad->I_z_ddot_kal = states[10];
+    Quad->I_z_dddot_kal = states[11];
 
     // END critical section
     return 0;

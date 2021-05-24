@@ -15,13 +15,9 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in grad to rad
 
-    // updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
-    // updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
-    // updatePID_statespace(pidz, actTime, (height - Quad->I_z) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
-
-    updatePID(pidx, actTime, (I_safeX - Quad->I_x)/1000.0);
-    updatePID(pidy, actTime, (I_safeY - Quad->I_y)/1000.0);
-    updatePID(pidz, actTime, (height - Quad->I_z)/1000.0);
+    updatePID(pidx, actTime, (I_safeX - Quad->I_x) / 1000.0);
+    updatePID(pidy, actTime, (I_safeY - Quad->I_y) / 1000.0);
+    updatePID(pidz, actTime, (height - Quad->I_z) / 1000.0);
 
     // asin() is only defined for range [-1,1] therefore limiting is needed
     x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
@@ -32,7 +28,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 102
 
-    unsigned char thrust0 = /*m * (g - z_ddot)*/ 94;/* / (cos(Quad->roll) * cos(Quad->pitch)); */ // TODO: get second derivative
+    unsigned char thrust0 = /*m * (g - z_ddot)*/ 102;/* / (cos(Quad->roll) * cos(Quad->pitch));*/  // TODO: get second derivative
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
@@ -44,10 +40,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 
-    // test TODO: how does this work (where does the equation come from)
-    // double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
-    // double pitch_d = -asin((-y_ddot * sin(q6) + x_ddot * cos(q6)) / cos(roll_d) / g);
-
+    // TODO: how does this work (where does the equation come from)
     double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
     double pitch_d = -asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
 
@@ -62,6 +55,9 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     // 1 deg == 1000 cts
     double scaling = 1000.0 / 1.0;
+    // roll_d = roll_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
+    // pitch_d = pitch_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
+
     ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
     ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));
 

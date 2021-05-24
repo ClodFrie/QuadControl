@@ -24,14 +24,17 @@ double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
 int updateState(struct QuadState* Quad);
 
-enum STATES { IDLE,
-              TAKEOFF,
-              HOVER,
-              RECTANGULAR_TRAJECTORY,
-              LEMNISCATE_TRAJECTORY,
-              IMUC_HOVER,
-              IMUC_ONLINE_TRAJECTORY,
-              LANDING } state;
+enum STATES {
+    INIT,
+    IDLE,
+    TAKEOFF,
+    HOVER,
+    RECTANGULAR_TRAJECTORY,
+    LEMNISCATE_TRAJECTORY,
+    IMUC_HOVER,
+    IMUC_ONLINE_TRAJECTORY,
+    LANDING
+} state;
 // IMUC = IMU + Camera
 
 PID pidx, pidy, pidz;  // create pid variables
@@ -46,8 +49,8 @@ void* ioThread(void* vptr) {
     // initialize log file
     FILE* fd = initLogFile("IDLE.X");
 
-    // define starting state as IDLE
-    state = IDLE;
+    // define starting state as INIT
+    state = INIT;
 
     // initialize crc0
     unsigned char crc0 = crc8(0, NULL, 0);  // TODO: move this somewhere more intelligent
@@ -77,21 +80,17 @@ void* ioThread(void* vptr) {
     double Ki = 1.0 / TI;
     // END Ziegler Nichols
 
-    // initPID(&pidx, 0.35, 0.20, 1.65, 8.50, get_time_ms());  // pidX
-    // initPID(&pidy, 0.35, 0.19, 1.56, 8.50, get_time_ms());  // pidY
-    // initPID(&pidz, 2.90, 2.25, 3.55, 10, get_time_ms());    // pidZ -- TODO: still not properly tuned
-
-    // test parameters
-    // initPID(&pidx, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
-    // initPID(&pidy, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
-    // initPID(&pidz, 5.50, 12.0, 0 * 40.55, 5, get_time_ms());     // pidZ -- TODO: still not properly tuned
-
-    initKalman();
+    initKalman();  // TODO: not working, why??
 
     //  without kalman
-    initPID(&pidx, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
-    initPID(&pidy, 0.65, 0.1, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
-    initPID(&pidz, 5, 3, 0.25, 10, get_time_ms());         // pidZ
+    initPID(&pidx, 0.85, 0.25, 0.85, 1.0 / 0.16, get_time_ms());  // pidX
+    initPID(&pidy, 0.85, 0.25, 0.85, 1.0 / 0.16, get_time_ms());  // pidY
+
+    // pidz for takeoff
+    initPID(&pidz, 0, 3.5, 3.5, 10, get_time_ms());  // pidZ
+
+    // pidz for hovering
+    initPID(&pidz, 2, 0.75, 3.5, 10, get_time_ms());  // pidZ
 
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
@@ -100,7 +99,6 @@ void* ioThread(void* vptr) {
     }
     printf("[PARAM] received succesfully!\n");
 
-    state = HOVER;
     while (1) {  // do forever
         double t1 = get_time_ms();
         // receive drone data
@@ -115,12 +113,25 @@ void* ioThread(void* vptr) {
 
             // calculate desired movements
             switch (state) {
-                case IDLE:
+                case INIT:  // wait for measurements from Qualisys system
+                    if (Quadptr->I_z >= 0) {
+                        state == IDLE;
+                    }
+                    break;
+                case IDLE:  // wait for some kind of start signal
+
+                    // currently there is no idle state
+                    state == TAKEOFF;
                     break;
                 case TAKEOFF:
+                    calculateHover(600, -1878.92, 705.49, 0, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case HOVER:
-                    calculateHover(600, -1878.92, 705.49, 4, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    if (Quadptr->I_z < 300) {
+                        calculateHover(600, -1878.92, 705.49, 0, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    } else {
+                        calculateHover(600, -1878.92, 705.49, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    }
                     break;
                 case RECTANGULAR_TRAJECTORY:
                     break;
@@ -210,10 +221,10 @@ int updateState(struct QuadState* Quad) {
     // TODO: test before use
     Quad->I_x_kal = states[0];
     Quad->I_x_dot_kal = states[1];
-    Quad->I_y_kal = states[2];
-    Quad->I_y_dot_kal = states[3];
-    Quad->I_z_kal = states[4];
-    Quad->I_z_dot_kal = states[5];
+    Quad->I_y_kal = states[4];
+    Quad->I_y_dot_kal = states[5];
+    Quad->I_z_kal = states[8];
+    Quad->I_z_dot_kal = states[9];
 
     // END critical section
     return 0;

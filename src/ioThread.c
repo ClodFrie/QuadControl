@@ -120,7 +120,7 @@ void* ioThread(void* vptr) {
                     break;
                 case HOVER:
                     if (Quadptr->I_z < 400) {
-                        calculateHover(600, -1878.92, 705.49, 0, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                        calculateHover(600, -1878.92, 705.49, 0.5, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     } else {
                         calculateHover(600, -1878.92, 705.49, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     }

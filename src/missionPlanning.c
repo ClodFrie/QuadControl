@@ -24,6 +24,15 @@ int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Qua
     double C_T = 8.5041e-4;
     double power = 7.0 / 4.0;
 
+    // limit input
+    for (int i = 0; i < 4; i++) {
+        if (Ft_i[i] < 0.001) {
+            Ft_i[i] = 0.001;
+        } else if (Ft_i[i] > 9) {
+            Ft_i[i] = 9;
+        }
+    }
+
     ctrl->u_i[0] = pow(Ft_i[0] / C_T, 1 / power);
     ctrl->u_i[1] = pow(Ft_i[1] / C_T, 1 / power);
     ctrl->u_i[2] = pow(Ft_i[2] / C_T, 1 / power);

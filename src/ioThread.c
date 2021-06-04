@@ -102,15 +102,8 @@ void* ioThread(void* vptr) {
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
                     if (Quadptr->I_z >= 0) {
-                        // with kalman
-                        initPID(&pidx, 5.8, 0.60, 0.95, 6.20, get_time_ms());  // pidX
-                        initPID(&pidy, 4.5, 0.40, 1.25, 6.25, get_time_ms());  // pidY
-
-                        // pidz for takeoff
-                        // initPID(&pidz, 0, 3.5, 3.5, 10, get_time_ms());  // pidZ
-
-                        // pidz for hovering
-                        initPID(&pidz, 1.05, 0.6, 5.4, 10, get_time_ms());  // pidZ
+                        // safeX = Quadptr->I_x;
+                        // safeY = Quadptr->I_y;    
 
                         state = IDLE;  // change active state to idle
                     }
@@ -119,17 +112,17 @@ void* ioThread(void* vptr) {
 
                     // currently there is no idle state
                     state = TAKEOFF;
+
                     break;
                 case TAKEOFF:
                     // currently there is no takeoff state
-                    state = HOVER;
+                    // state = HOVER;
+
+                    pathMPC(0.6,safeX,safeY,Quadptr,&ctrl,get_time_ms());
+
                     break;
                 case HOVER:
-                    if (Quadptr->I_z < 300) {
-                        calculateHover(600, safeX, safeY, 2, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
-                    } else {
-                        calculateHover(600, safeX, safeY, 8, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
-                    }
+                    
                     break;
                 case RECTANGULAR_TRAJECTORY:
                     break;
@@ -194,7 +187,7 @@ FILE* initLogFile(char* mType) {
 // write current data for every time step
 int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
     fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d, Quadptr->roll, Quadptr->pitch);
+            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, /*ctrl.roll_d, ctrl.pitch_d,*/ ctrl.yaw_d, Quadptr->roll, Quadptr->pitch);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
 }
@@ -230,6 +223,21 @@ int updateState(struct QuadState* Quad) {
     Quad->I_z_dot_kal = states[9];
     Quad->I_z_ddot_kal = states[10];
     Quad->I_z_dddot_kal = states[11];
+
+    Quad->Q_roll_kal = states[12];
+    Quad->Q_roll_dot_kal = states[13];
+    Quad->Q_roll_ddot_kal = states[14];
+    Quad->Q_roll_dddot_kal = states[15];
+
+    Quad->Q_pitch_kal = states[16];
+    Quad->Q_pitch_dot_kal = states[17];
+    Quad->Q_pitch_ddot_kal = states[18];
+    Quad->Q_pitch_dddot_kal = states[19];
+
+    Quad->Q_yaw_kal = states[20];
+    Quad->Q_yaw_dot_kal = states[21];
+    Quad->Q_yaw_ddot_kal = states[22];
+    Quad->Q_yaw_dddot_kal = states[23];
 
     // END critical section
     return 0;

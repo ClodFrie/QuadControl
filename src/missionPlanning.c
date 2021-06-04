@@ -4,8 +4,31 @@
 #include <stdio.h>
 
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
+#include "../include/MPC.h"
 #include "../include/pid.h"
 #include "../include/quad.h"
+
+// MPC based controller
+int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime) {
+    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
+    ctrl->u_thrust = 104;
+
+    // prepare MPC variables
+    double Ft_i[4];
+    double state[12] = {I_safeX - Quad->I_x_kal, I_safeY - Quad->I_y_kal, height - Quad->I_z_kal, Quad->Q_roll_kal, Quad->Q_pitch_kal, Quad->Q_yaw_kal, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, Quad->Q_roll_dot_kal, Quad->Q_pitch_dot_kal, Quad->Q_yaw_dot_kal};
+
+    // solve unconstrained optimal control problem
+    solveOCP(Ft_i, state);
+
+    // convert force to u
+    double C_T = 8.5041e-4;
+    double power = 7.0 / 4.0;
+
+    ctrl->u_i[0] = pow(Ft_i[0] / C_T, 1 / power);
+    ctrl->u_i[1] = pow(Ft_i[1] / C_T, 1 / power);
+    ctrl->u_i[2] = pow(Ft_i[2] / C_T, 1 / power);
+    ctrl->u_i[3] = pow(Ft_i[3] / C_T, 1 / power);
+}
 
 // PID Controller for a hovering flight
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
@@ -19,14 +42,14 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double output[6] = {};
     double t, t0, a_max, v_max, s_d;
     t = 0;
-    t0 = 10;        // s
+    t0 = 10;       // s
     a_max = 2;     // m/s^2
     v_max = 0.05;  // m/s
     s_d = 0.5;     // m
     continousPath(output, actTime, t0, a_max, v_max, s_d);
 
     // kalman
-    updatePID_statespace(pidx, actTime, ((I_safeX - output[2]) - Quad->I_x_kal) / 1000.0, output[1]-Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidx, actTime, ((I_safeX - output[2]) - Quad->I_x_kal) / 1000.0, output[1] - Quad->I_x_dot_kal / 1000.0);
     updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
     updatePID_statespace(pidz, actTime, (height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 

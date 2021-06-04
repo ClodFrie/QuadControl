@@ -33,10 +33,11 @@ int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Qua
         }
     }
 
-    ctrl->u_i[0] = pow(Ft_i[0] / C_T, 1 / power);
-    ctrl->u_i[1] = pow(Ft_i[1] / C_T, 1 / power);
-    ctrl->u_i[2] = pow(Ft_i[2] / C_T, 1 / power);
-    ctrl->u_i[3] = pow(Ft_i[3] / C_T, 1 / power);
+    // assign ctrl to be sent to the quadrocopter
+    ctrl->u_i[0] = (int)pow(Ft_i[0] / C_T, 1 / power);
+    ctrl->u_i[1] = (int)pow(Ft_i[1] / C_T, 1 / power);
+    ctrl->u_i[2] = (int)pow(Ft_i[2] / C_T, 1 / power);
+    ctrl->u_i[3] = (int)pow(Ft_i[3] / C_T, 1 / power);
 }
 
 // PID Controller for a hovering flight

@@ -25,7 +25,7 @@ void updatePID(PID* pid, double actTime, double input) {
     double diff = (input - pid->prevInput) / Ta;
 
     // integrate one time step
-    double intValue = pid->intValue + (pid->prevInput * Ta); // maybe a different method for integration could be used
+    double intValue = pid->intValue + (pid->prevInput * Ta);  // maybe a different method for integration could be used
 
     // implement Anti-Windup
     double windup = pid->windup;

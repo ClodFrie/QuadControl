@@ -7,8 +7,8 @@
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/FTDI_helpers.h"
 #include "../include/crc.h"
-#include "../include/hoveringFlight.h"
 #include "../include/kalman.h"
+#include "../include/missionPlanning.h"
 #include "../include/pid.h"
 #include "../include/quad.h"
 #include "../include/threads.h"
@@ -23,6 +23,7 @@ int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struc
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
 int updateState(struct QuadState* Quad);
+void plotPath();
 
 enum STATES {
     INIT,
@@ -56,6 +57,7 @@ void* ioThread(void* vptr) {
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
+
     // zero all variables
     bzero(&data, sizeof(data));
     bzero(&ctrl, sizeof(ctrl));
@@ -79,6 +81,10 @@ void* ioThread(void* vptr) {
     }
     printf("[PARAM] received succesfully!\n");
 
+    // plotPath(t1);  // gnuplot
+
+    double safeX = -1878.92;
+    double safeY = 705.49;
     while (1) {  // do forever
 
         // receive drone data
@@ -96,15 +102,15 @@ void* ioThread(void* vptr) {
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
                     if (Quadptr->I_z >= 0) {
-                        //  with kalman
-                        initPID(&pidx, 6.2, 0.75, 1.25, 1.0 / 0.16, get_time_ms());  // pidX
-                        initPID(&pidy, 4.5, 0.35, 1.25, 1.0 / 0.16, get_time_ms());  // pidY
+                        // with kalman
+                        initPID(&pidx, 5.8, 0.60, 0.95, 6.20, get_time_ms());  // pidX
+                        initPID(&pidy, 4.5, 0.40, 1.25, 6.25, get_time_ms());  // pidY
 
                         // pidz for takeoff
                         // initPID(&pidz, 0, 3.5, 3.5, 10, get_time_ms());  // pidZ
 
                         // pidz for hovering
-                        initPID(&pidz, 2.7, 0.95, 4.3, 10, get_time_ms());  // pidZ
+                        initPID(&pidz, 1.05, 0.6, 5.4, 10, get_time_ms());  // pidZ
 
                         state = IDLE;  // change active state to idle
                     }
@@ -119,10 +125,10 @@ void* ioThread(void* vptr) {
                     state = HOVER;
                     break;
                 case HOVER:
-                    if (Quadptr->I_z < 400) {
-                        calculateHover(600, -1878.92, 705.49, 1, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    if (Quadptr->I_z < 300) {
+                        calculateHover(600, safeX, safeY, 2, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     } else {
-                        calculateHover(600, -1878.92, 705.49, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                        calculateHover(600, safeX, safeY, 8, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     }
                     break;
                 case RECTANGULAR_TRAJECTORY:
@@ -180,15 +186,15 @@ FILE* initLogFile(char* mType) {
     }
 
     // write first line (header)
-    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL_CMD,PITCH_CMD,YAW_CMD\n");
+    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL_CMD,PITCH_CMD,YAW_CMD,ROLL,PITCH\n");
 
     // return file descriptor for use in other functions
     return fd;
 }
 // write current data for every time step
 int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d);
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, ctrl.roll_d, ctrl.pitch_d, ctrl.yaw_d, Quadptr->roll, Quadptr->pitch);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
 }
@@ -227,4 +233,33 @@ int updateState(struct QuadState* Quad) {
 
     // END critical section
     return 0;
+}
+
+void plotPath(double t1) {
+    FILE* gnuplot = popen("gnuplot -persist", "w");  // -persist
+    if (gnuplot == NULL) {
+        return NULL;
+    }
+    fprintf(gnuplot, "set grid\n set  mxtics 4\n set mytics 4\n");
+    fprintf(gnuplot, "plot '-' using 1:2 with lines title 'a' lw 2,'-' using 1:2 with lines title 'v' lw 2,'-' using 1:2 with lines title 's' lw 2 \n");  // linespoints
+    double output[6] = {};
+    double t, t0, a_max, v_max, s_d;
+    t = 0;
+    t0 = 2;        // s
+    a_max = 2;     // m/s^2
+    v_max = 0.05;  // m/s
+    s_d = 0.5;     // m
+
+    continousPath(output, t, t0, a_max, v_max, s_d);
+    printf("duration: %lf\n", output[3]);
+    for (int k = 0; k < 3; k++) {
+        for (double i = 0; i < output[3]; i = i + 0.05) {
+            continousPath(output, i, t0, a_max, v_max, s_d);
+            // printf("%d,%lf\n", k, output[k]);
+            fprintf(gnuplot, "%lf %lf\n", i, output[k]);
+        }
+        fprintf(gnuplot, "e\n");
+    }
+
+    fclose(gnuplot);
 }

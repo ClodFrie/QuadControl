@@ -15,8 +15,18 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
 
+    // path planning
+    double output[6] = {};
+    double t, t0, a_max, v_max, s_d;
+    t = 0;
+    t0 = 10;        // s
+    a_max = 2;     // m/s^2
+    v_max = 0.05;  // m/s
+    s_d = 0.5;     // m
+    continousPath(output, actTime, t0, a_max, v_max, s_d);
+
     // kalman
-    updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x_kal) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidx, actTime, ((I_safeX - output[2]) - Quad->I_x_kal) / 1000.0, output[1]-Quad->I_x_dot_kal / 1000.0);
     updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
     updatePID_statespace(pidz, actTime, (height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 
@@ -80,7 +90,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 }
 
 int continousPath(double output[], double t, double t0, double a_max, double v_max, double s_d) {
-    double t, t0, a_max, v_max, s_d, tcons, accel, a, v, s, f1, f2, f3, f4, a1, a2;
+    double tcons, accel, a, v, s, f1, f2, f3, f4, a1, a2;
 
     tcons = 0;
 
@@ -125,5 +135,5 @@ int continousPath(double output[], double t, double t0, double a_max, double v_m
 
     output[3] = t0 + tcons + 2 * M_PI; /*T*/
 
-    return;
+    return 0;
 }

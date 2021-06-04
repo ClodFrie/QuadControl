@@ -33,6 +33,8 @@ int main() {
     pthread_join(p_ioThread, NULL);
     // pthread_join(p_consoleThread, NULL);
     pthread_join(p_pipeThread, NULL);  // TODO: After getting controller right, send position commands based on localization...
+    
+    return 0;
 }
 
 // open gnuplot

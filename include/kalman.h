@@ -8,7 +8,7 @@
     extern "C" {
     #endif /* __cplusplus */
 
-    int kalmanFilter(double state[],double ix, double iy,double iz);
+    int kalmanFilter(double state[],double ix, double iy,double iz, double roll, double pitch, double yaw);
     int initKalman();
 
     #ifdef __cplusplus

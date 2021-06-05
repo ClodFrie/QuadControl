@@ -18,7 +18,7 @@ unsigned int crc0;
 
 // function prototypes
 FILE* initLogFile(char* mType);
-int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr);
+int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr,double Ft_i[4]);
 
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
@@ -85,6 +85,8 @@ void* ioThread(void* vptr) {
 
     double safeX = -1878.92;
     double safeY = 705.49;
+    double Ft_i[4];
+
     while (1) {  // do forever
 
         // receive drone data
@@ -118,7 +120,7 @@ void* ioThread(void* vptr) {
                     // currently there is no takeoff state
                     // state = HOVER;
 
-                    pathMPC(0.6,safeX,safeY,Quadptr,&ctrl,get_time_ms());
+                    pathMPC(0.6,safeX,safeY,Quadptr,&ctrl,get_time_ms(),Ft_i);
 
                     break;
                 case HOVER:
@@ -136,7 +138,7 @@ void* ioThread(void* vptr) {
             sendCmd(&ftHandle);
 
             // write logfile
-            writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr);
+            writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr,Ft_i);
         }
         printf("[T],%3.2lf,", get_time_ms() - t1);
         t1 = get_time_ms();
@@ -179,15 +181,15 @@ FILE* initLogFile(char* mType) {
     }
 
     // write first line (header)
-    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL_CMD,PITCH_CMD,YAW_CMD,ROLL,PITCH\n");
+    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
 
     // return file descriptor for use in other functions
     return fd;
 }
 // write current data for every time step
-int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%d,%d,%d,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, /*ctrl.roll_d, ctrl.pitch_d,*/ ctrl.yaw_d, Quadptr->roll, Quadptr->pitch);
+int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr,double Ft_i[]) {
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_roll_kal, Quadptr->Q_pitch_kal, Quadptr->Q_yaw_kal, Quadptr->Q_roll_dot_kal, Quadptr->Q_pitch_dot_kal,Quadptr->Q_yaw_dot_kal,Ft_i[0],Ft_i[1],Ft_i[2],Ft_i[3]);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
 }
@@ -208,7 +210,7 @@ int updateState(struct QuadState* Quad) {
 
     // state estimation: kalman filter
     double states[12];
-    kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z);
+    kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z,q4,q5,q6);
 
     // TODO: test before use
     Quad->I_x_kal = states[0];
@@ -246,7 +248,7 @@ int updateState(struct QuadState* Quad) {
 void plotPath(double t1) {
     FILE* gnuplot = popen("gnuplot -persist", "w");  // -persist
     if (gnuplot == NULL) {
-        return NULL;
+        return;
     }
     fprintf(gnuplot, "set grid\n set  mxtics 4\n set mytics 4\n");
     fprintf(gnuplot, "plot '-' using 1:2 with lines title 'a' lw 2,'-' using 1:2 with lines title 'v' lw 2,'-' using 1:2 with lines title 's' lw 2 \n");  // linespoints

@@ -1,8 +1,8 @@
-/* kalman.h */
+/* MPC.h */
 // idea from https://stackoverflow.com/questions/26889142/using-eigen-in-a-c-project
 
-#ifndef KALMAN_H
-#define KALMAN_H
+#ifndef MPC_H
+#define MPC_H
 
     #ifdef __cplusplus
     extern "C" {

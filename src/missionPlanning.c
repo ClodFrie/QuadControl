@@ -9,15 +9,14 @@
 #include "../include/quad.h"
 
 // MPC based controller
-int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime,double Ft_i[4]) {
+int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
     ctrl->u_thrust = 104;
 
     // prepare MPC state variables
-    double state[12] = {I_safeX - Quad->I_x_kal, I_safeY - Quad->I_y_kal, height - Quad->I_z_kal, Quad->Q_roll_kal, Quad->Q_pitch_kal, Quad->Q_yaw_kal, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, Quad->Q_roll_dot_kal, Quad->Q_pitch_dot_kal, Quad->Q_yaw_dot_kal};
-
+    double x0[12] = {I_safeX - Quad->I_x_kal, I_safeY - Quad->I_y_kal, height - Quad->I_z_kal, Quad->Q_roll_kal, Quad->Q_pitch_kal, Quad->Q_yaw_kal, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, Quad->Q_roll_dot_kal, Quad->Q_pitch_dot_kal, Quad->Q_yaw_dot_kal};
     // solve unconstrained optimal control problem
-    solveOCP(Ft_i, state);
+    solveOCP(Ft_i, x0);
 
     // convert force to u
     double C_T = 8.5041e-4;
@@ -97,7 +96,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // lowpass filter angle commands
     // roll_d = roll_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
     // pitch_d = pitch_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
-/*
+    /*
     // assign angle commands
     ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
     ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));

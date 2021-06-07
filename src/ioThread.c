@@ -205,7 +205,7 @@ int writeLogLine(FILE* fd, double deltaT, struct QuadState* Quadptr, double Ft_i
     printf("[T],%3.2lf,", deltaT);
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,Ui:%3d,%3d,%3d,%3d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_x_dot_kal, Quadptr->Q_y_dot_kal, Quadptr->Q_z_dot_kal, Quadptr->Q_roll_kal * 180.0 / M_PI, Quadptr->Q_pitch_kal * 180.0 / M_PI, Quadptr->Q_yaw_kal * 180.0 / M_PI, ctrl.u_i[0], ctrl.u_i[1], ctrl.u_i[2], ctrl.u_i[3]);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,Q_x_dot,%6.2f,Q_y_dot,%6.2f,Q_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,Ui:%3d,%3d,%3d,%3d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_x_dot_kal, Quadptr->Q_y_dot_kal, Quadptr->Q_z_dot_kal, Quadptr->Q_roll_kal * 180.0 / M_PI, Quadptr->Q_pitch_kal * 180.0 / M_PI, Quadptr->Q_yaw_kal * 180.0 / M_PI, ctrl.u_i[0], ctrl.u_i[1], ctrl.u_i[2], ctrl.u_i[3]);
 }
 
 int updateState(struct QuadState* Quad) {

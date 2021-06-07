@@ -178,42 +178,42 @@ def on_packet(packet):
         #                                          ↓y
 
         # TODO: does this work??
-        R_SP = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ R_QP
+        # R_SP = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) @ R_QP
 
-        S_cx = R_SP @ I_cx
-        S_cy = R_SP @ I_cy
-        S_cz = R_SP @ I_cz
+        # S_cx = R_SP @ I_cx
+        # S_cy = R_SP @ I_cy
+        # S_cz = R_SP @ I_cz
 
-        centerx = 250
-        centery = 250
-        cCenter = (centerx, centery)
-        # draw coordinate frame
-        cv2.line(img, cCenter, (centerx+int(100 *
-                                            S_cx[0]), centery+int(100*S_cx[1])), (0, 0, 255), 4)  # x
-        cv2.line(img, cCenter, (centerx+20, centery),
-                 (0, 0, 255), 1)  # x-fixed
-        cv2.line(img, cCenter, (centerx+int(100 *
-                                            S_cy[0]), centery+int(100*S_cy[1])), (0, 255, 0), 4)  # y
-        cv2.line(img, cCenter, (centerx, centery+20),
-                 (0, 255, 0), 1)  # y-fixed
-        cv2.line(img, cCenter, (centerx+int(100 *
-                                            S_cz[0]), centery+int(100*S_cz[1])), (255, 0, 0), 4)  # z
-        cv2.line(img, cCenter, (centerx, centery), (255, 0, 0), 1)  # z-fixed
+        # centerx = 250
+        # centery = 250
+        # cCenter = (centerx, centery)
+        # # draw coordinate frame
+        # cv2.line(img, cCenter, (centerx+int(100 *
+        #                                     S_cx[0]), centery+int(100*S_cx[1])), (0, 0, 255), 4)  # x
+        # cv2.line(img, cCenter, (centerx+20, centery),
+        #          (0, 0, 255), 1)  # x-fixed
+        # cv2.line(img, cCenter, (centerx+int(100 *
+        #                                     S_cy[0]), centery+int(100*S_cy[1])), (0, 255, 0), 4)  # y
+        # cv2.line(img, cCenter, (centerx, centery+20),
+        #          (0, 255, 0), 1)  # y-fixed
+        # cv2.line(img, cCenter, (centerx+int(100 *
+        #                                     S_cz[0]), centery+int(100*S_cz[1])), (255, 0, 0), 4)  # z
+        # cv2.line(img, cCenter, (centerx, centery), (255, 0, 0), 1)  # z-fixed
 
-        cv2.putText(img, 'X/Y/Z:', (20, 25), cv2.FONT_HERSHEY_SIMPLEX,
-                    1, (255, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(img, '{} '.format(Q_t_PQ), (5, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(img, '{} '.format(euler*180.0/np.pi), (5, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
+        # cv2.putText(img, 'X/Y/Z:', (20, 25), cv2.FONT_HERSHEY_SIMPLEX,
+        #             1, (255, 0, 0), 2, cv2.LINE_AA)
+        # cv2.putText(img, '{} '.format(Q_t_PQ), (5, 50),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
+        # cv2.putText(img, '{} '.format(euler*180.0/np.pi), (5, 80),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
-        cv2.putText(img, 'FPS: {:0.2f} '.format(1/interval), (5, 480),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
+        # cv2.putText(img, 'FPS: {:0.2f} '.format(1/interval), (5, 480),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
 
         print("{},{}".format(Q_t_PQ, euler))
         sys.stdout.flush()
-        cv2.imshow('Quadrotor State', img)
+        # cv2.imshow('Quadrotor State', img)
 
         #time.sleep((1/24) - 0.001)
         wK = cv2.waitKey(1)

@@ -16,7 +16,7 @@ int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, struct QuadState* Qu
     Q_safeZ = -270;
     // prepare MPC state variables
 
-    double x0[12] = {(Q_safeX - Quad->Q_x_kal)/1000.0, (Q_safeY - Quad->Q_y_kal)/1000.0, (Q_safeZ - Quad->Q_z_kal)/1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal), 
+    double x0[12] = {(Q_safeX - Quad->Q_x_kal)/1000.0, (Q_safeY - Quad->Q_y_kal)/1000.0, (-280 - Quad->Q_z_kal)/1000.0, -(-Quad->Q_roll_kal), -(-Quad->Q_pitch_kal), -(-Quad->Q_yaw_kal), 
                     (-Quad->Q_x_dot_kal)/1000.0,(-Quad->Q_y_dot_kal)/1000.0,(-Quad->Q_z_dot_kal)/1000.0,(-Quad->Q_roll_dot_kal),(-Quad->Q_pitch_dot_kal),(-Quad->Q_yaw_dot_kal)};
 
     // solve unconstrained optimal control problem

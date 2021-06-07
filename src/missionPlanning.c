@@ -9,35 +9,37 @@
 #include "../include/quad.h"
 
 // MPC based controller
-int pathMPC(double height, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
+int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
-    ctrl->u_thrust = 104;
+    ctrl->u_thrust = 104 * 0;
 
+    Q_safeZ = -270;
     // prepare MPC state variables
-    double x0[12] = {I_safeX - Quad->I_x_kal, I_safeY - Quad->I_y_kal, height - Quad->I_z_kal, Quad->Q_roll_kal, Quad->Q_pitch_kal, Quad->Q_yaw_kal, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, Quad->Q_roll_dot_kal, Quad->Q_pitch_dot_kal, Quad->Q_yaw_dot_kal};
+
+    double x0[12] = {(Q_safeX - Quad->Q_x_kal)/1000.0, (Q_safeY - Quad->Q_y_kal)/1000.0, (Q_safeZ - Quad->Q_z_kal)/1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal), 
+                    (-Quad->Q_x_dot_kal)/1000.0,(-Quad->Q_y_dot_kal)/1000.0,(-Quad->Q_z_dot_kal)/1000.0,(-Quad->Q_roll_dot_kal),(-Quad->Q_pitch_dot_kal),(-Quad->Q_yaw_dot_kal)};
+
     // solve unconstrained optimal control problem
     solveOCP(Ft_i, x0);
+
+    // printf("\n%lf,%lf,%lf,%lf\n", Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
 
     // convert force to u
     double C_T = 8.5041e-4;
     double power = 7.0 / 4.0;
 
-    // limit input
+    // assign ctrl to be sent to the quadrocopter
+    double F_equi = (1.3068 - 0.45) * 9.81 / 4.0;  // (m_body + 4 * m_rotor)*g / 4
     for (int i = 0; i < 4; i++) {
-        if (Ft_i[i] < 0.001) {
-            Ft_i[i] = 0.001;
-        } else if (Ft_i[i] > 9) {
-            Ft_i[i] = 9;
+        Ft_i[i] *= 0.10;
+        if (Ft_i[i] >= 0) {
+            ctrl->u_i[i] = (int)pow((Ft_i[i]) / C_T, 1 / power);
+        } else {
+            ctrl->u_i[i] = (int)-pow((-Ft_i[i]) / C_T, 1 / power);
         }
     }
-
-    // assign ctrl to be sent to the quadrocopter
-    ctrl->u_i[0] = (int)pow(Ft_i[0] / C_T, 1 / power);
-    ctrl->u_i[1] = (int)pow(Ft_i[1] / C_T, 1 / power);
-    ctrl->u_i[2] = (int)pow(Ft_i[2] / C_T, 1 / power);
-    ctrl->u_i[3] = (int)pow(Ft_i[3] / C_T, 1 / power);
 }
-
+/*
 // PID Controller for a hovering flight
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
@@ -96,11 +98,10 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // lowpass filter angle commands
     // roll_d = roll_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
     // pitch_d = pitch_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
-    /*
+    
     // assign angle commands
     ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
     ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));
-*/
     // calculate yaw command
     int maxDelta = 5000;  // 10 degrees max
     ctrl->yaw_d = (210 - 45) * 1000;
@@ -114,11 +115,9 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
         ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
     }
 
-    // print debug message
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,yaw_cmd,%5d,\n", Quad->I_x, Quad->I_y, Quad->I_z, Quad->I_x_dot_kal, Quad->I_y_dot_kal, Quad->I_z_dot_kal, /*ctrl->roll_d, ctrl->pitch_d,*/ ctrl->yaw_d);
-
     return 0;
 }
+*/
 
 int continousPath(double output[], double t, double t0, double a_max, double v_max, double s_d) {
     double tcons, accel, a, v, s, f1, f2, f3, f4, a1, a2;

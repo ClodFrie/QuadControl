@@ -19,7 +19,7 @@ unsigned int crc0;
 
 // function prototypes
 FILE* initLogFile(char* mType);
-int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr, double Ft_i[4]);
+int writeLogLine(FILE* fd, double deltaT, struct QuadState* Quadptr, double Ft_i[]);
 
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
@@ -87,8 +87,11 @@ void* ioThread(void* vptr) {
 
     // plotPath(t1);  // gnuplot
 
-    double safeX = -1878.92;
-    double safeY = 705.49;
+    double I_safeX = -1878.92;
+    double I_safeY = 705.49;
+    double Q_safeX = 0;
+    double Q_safeY = 0;
+    double Q_safeZ = -600;
     double Ft_i[4];
     double xo[12];
 
@@ -96,7 +99,6 @@ void* ioThread(void* vptr) {
 
         // receive drone data
         requestData(&ftHandle);
-        printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
         if (pthread_mutex_lock(&state_mutex) == 0) {
             updateState(Quadptr);
 
@@ -108,8 +110,10 @@ void* ioThread(void* vptr) {
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
                     if (Quadptr->I_z >= 0) {
-                        // safeX = Quadptr->I_x;
-                        // safeY = Quadptr->I_y;
+                        I_safeX = Quadptr->I_x;
+                        I_safeY = Quadptr->I_y;
+                        Q_safeX = Quadptr->Q_x;
+                        Q_safeY = Quadptr->Q_y;
 
                         state = IDLE;  // change active state to idle
                     }
@@ -123,8 +127,8 @@ void* ioThread(void* vptr) {
                 case TAKEOFF:
                     // currently there is no takeoff state
                     // state = HOVER;
-                    
-                    pathMPC(0.6, safeX, safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
+
+                    pathMPC(Q_safeZ, Q_safeX, Q_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
 
                     break;
                 case HOVER:
@@ -142,9 +146,9 @@ void* ioThread(void* vptr) {
             sendCmd(&ftHandle);
 
             // write logfile
-            writeLogLine(fd, get_time_ms() - t1, data.battery_voltage, data.HL_cpu_load, data.angle_yaw, Quadptr, Ft_i);
+            writeLogLine(fd, get_time_ms() - t1, Quadptr, Ft_i);
         }
-        printf("[T],%3.2lf,", get_time_ms() - t1);
+
         t1 = get_time_ms();
     }
 
@@ -191,11 +195,17 @@ FILE* initLogFile(char* mType) {
     return fd;
 }
 // write current data for every time step
-int writeLogLine(FILE* fd, double deltaT, short bat, short cpu, short yaw, struct QuadState* Quadptr, double Ft_i[]) {
+int writeLogLine(FILE* fd, double deltaT, struct QuadState* Quadptr, double Ft_i[]) {
     fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
             ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_roll_kal, Quadptr->Q_pitch_kal, Quadptr->Q_yaw_kal, Quadptr->Q_roll_dot_kal, Quadptr->Q_pitch_dot_kal, Quadptr->Q_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
+
+    // print debug messages
+    printf("[T],%3.2lf,", deltaT);
+    printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
+
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,Ui:%3d,%3d,%3d,%3d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_x_dot_kal, Quadptr->Q_y_dot_kal, Quadptr->Q_z_dot_kal, Quadptr->Q_roll_kal * 180.0 / M_PI, Quadptr->Q_pitch_kal * 180.0 / M_PI, Quadptr->Q_yaw_kal * 180.0 / M_PI, ctrl.u_i[0], ctrl.u_i[1], ctrl.u_i[2], ctrl.u_i[3]);
 }
 
 int updateState(struct QuadState* Quad) {
@@ -204,31 +214,27 @@ int updateState(struct QuadState* Quad) {
     double q5 = Quad->pitch;
     double q6 = Quad->yaw;
 
-    double Qx0 = Quad->Qx;
-    double Qy0 = Quad->Qy;
-    double Qz0 = Quad->Qz;
-
-    Quad->I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
-    Quad->I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
-    Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
+    double Qx0 = Quad->Q_x;
+    double Qy0 = Quad->Q_y;
+    double Qz0 = Quad->Q_z;
 
     // state estimation: kalman filter
     double states[24];
-    kalmanFilter(states, Quad->I_x, Quad->I_y, Quad->I_z, q4, q5, q6);
+    kalmanFilter(states, Quad->Q_x, Quad->Q_y, Quad->Q_z, q4, q5, q6);
 
     // TODO: test before use
-    Quad->I_x_kal = states[0];
-    Quad->I_x_dot_kal = states[1];
-    Quad->I_x_ddot_kal = states[2];
-    Quad->I_x_dddot_kal = states[3];
-    Quad->I_y_kal = states[4];
-    Quad->I_y_dot_kal = states[5];
-    Quad->I_y_ddot_kal = states[6];
-    Quad->I_y_dddot_kal = states[7];
-    Quad->I_z_kal = states[8];
-    Quad->I_z_dot_kal = states[9];
-    Quad->I_z_ddot_kal = states[10];
-    Quad->I_z_dddot_kal = states[11];
+    Quad->Q_x_kal = states[0];
+    Quad->Q_x_dot_kal = states[1];
+    Quad->Q_x_ddot_kal = states[2];
+    Quad->Q_x_dddot_kal = states[3];
+    Quad->Q_y_kal = states[4];
+    Quad->Q_y_dot_kal = states[5];
+    Quad->Q_y_ddot_kal = states[6];
+    Quad->Q_y_dddot_kal = states[7];
+    Quad->Q_z_kal = states[8];
+    Quad->Q_z_dot_kal = states[9];
+    Quad->Q_z_ddot_kal = states[10];
+    Quad->Q_z_dddot_kal = states[11];
 
     Quad->Q_roll_kal = states[12];
     Quad->Q_roll_dot_kal = states[13];
@@ -244,6 +250,19 @@ int updateState(struct QuadState* Quad) {
     Quad->Q_yaw_dot_kal = states[21];
     Quad->Q_yaw_ddot_kal = states[22];
     Quad->Q_yaw_dddot_kal = states[23];
+
+    // TODO: kalman should already be calculating system speeds when using body fixed fram (position --> velocity)
+
+    // Quad->system_speeds[0] = cos(q5) * cos(q6) * Quad->I_x_dot_kal - cos(q5) * sin(q6) * Quad->I_y_dot_kal + sin(q5) * Quad->I_z_dot_kal;
+    // Quad->system_speeds[1] = (-sin(q5) * sin(q6) * Quad->I_y_dot_kal + cos(q6) * sin(q5) * Quad->I_x_dot_kal - Quad->I_z_dot_kal * cos(q5)) * sin(q4) - cos(q4) * (sin(q6) * Quad->I_x_dot_kal + cos(q6) * Quad->I_y_dot_kal);
+    // Quad->system_speeds[2] = (-sin(q5) * sin(q6) * Quad->I_y_dot_kal + cos(q6) * sin(q5) * Quad->I_x_dot_kal - Quad->I_z_dot_kal * cos(q5)) * cos(q4) + sin(q4) * (sin(q6) * Quad->I_x_dot_kal + cos(q6) * Quad->I_y_dot_kal);
+    // Quad->system_speeds[3] = Quad->Q_roll_dot_kal - sin(q5) * Quad->Q_yaw_dot_kal;
+    // Quad->system_speeds[4] = cos(q4) * Quad->Q_pitch_dot_kal + sin(q4) * cos(q5) * Quad->Q_yaw_dot_kal;
+    // Quad->system_speeds[5] = -sin(q4) * Quad->Q_pitch_dot_kal + cos(q4) * cos(q5) * Quad->Q_yaw_dot_kal;
+
+    Quad->I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
+    Quad->I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
+    Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
 
     // END critical section
     return 0;

@@ -20,7 +20,7 @@ void* pipeThread(void* vptr) {
         // printf("%s",inLine); //DEBUG
         if (pthread_mutex_trylock(&state_mutex) == 0) {  // lock succesful
             sscanf(inLine, "[ %lf %lf %lf],[ %lf %lf %lf]",
-                   &(Quadptr->Qx), &(Quadptr->Qy), &(Quadptr->Qz), &(Quadptr->roll), &(Quadptr->pitch), &(Quadptr->yaw));  // read data
+                   &(Quadptr->Q_x), &(Quadptr->Q_y), &(Quadptr->Q_z), &(Quadptr->roll), &(Quadptr->pitch), &(Quadptr->yaw));  // read data
             pthread_mutex_unlock(&state_mutex);                                                                            // unlock mutex
         }
     }

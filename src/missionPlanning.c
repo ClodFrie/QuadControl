@@ -9,14 +9,14 @@
 #include "../include/quad.h"
 
 // MPC based controller
-int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
+int pathMPC(double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
     ctrl->u_thrust = 104 * 0;
 
-    Q_safeZ = -270;
+    
     // prepare MPC state variables
 
-    double x0[12] = {(Q_safeX - Quad->Q_x_kal)/1000.0, (Q_safeY - Quad->Q_y_kal)/1000.0, (-280 - Quad->Q_z_kal)/1000.0, -(-Quad->Q_roll_kal), -(-Quad->Q_pitch_kal), -(-Quad->Q_yaw_kal), 
+    double x0[12] = {(I_safeX - Quad->Q_x_kal)/1000.0, (I_safeY - Quad->Q_y_kal)/1000.0, (I_safeZ - Quad->Q_z_kal)/1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal), 
                     (-Quad->Q_x_dot_kal)/1000.0,(-Quad->Q_y_dot_kal)/1000.0,(-Quad->Q_z_dot_kal)/1000.0,(-Quad->Q_roll_dot_kal),(-Quad->Q_pitch_dot_kal),(-Quad->Q_yaw_dot_kal)};
 
     // solve unconstrained optimal control problem

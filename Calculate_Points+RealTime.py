@@ -162,17 +162,17 @@ def on_packet(packet):
 
         # Creating a gray image with 3 x
         # channels RGB and unsigned int datatype
-        img = 200 * np.ones((500, 500, 3), np.uint8)
-        R_ScreenI = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        # img = 200 * np.ones((500, 500, 3), np.uint8)
+        # R_ScreenI = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
-        centerx = 250
-        centery = 250
-        cCenter = (centerx, centery)
+        # centerx = 250
+        # centery = 250
+        # cCenter = (centerx, centery)
 
-        # coordinates base vectors
-        I_cx = np.array([1, 0, 0])
-        I_cy = np.array([0, 1, 0])
-        I_cz = np.array([0, 0, 1])
+        # # coordinates base vectors
+        # I_cx = np.array([1, 0, 0])
+        # I_cy = np.array([0, 1, 0])
+        # I_cz = np.array([0, 0, 1])
 
         # transform into opencv screen coordinates  →x
         #                                          ↓y
@@ -211,11 +211,25 @@ def on_packet(packet):
         #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
 
 
-        print("{},{}".format(Q_t_PQ, euler))
+        Q_t_QP = -Q_t_PQ # redirect vector        
+        print("{},{}".format(Q_t_QP, euler))
+        
+        # Qx0 = Q_t_QP[0]
+        # Qy0 = Q_t_QP[1]
+        # Qz0 = Q_t_QP[2]
+        # q4 = euler[0]
+        # q5 = euler[1]
+        # q6 = euler[2]
+        
+        # temp=np.zeros((3,1))
+
+        # temp[0]= np.cos(q5) * np.cos(q6) * Qx0 + (np.sin(q4) * np.sin(q5) * np.cos(q6) - np.cos(q4) * np.sin(q6)) * Qy0 + (np.cos(q4) * np.sin(q5) * np.cos(q6) + np.sin(q4) * np.sin(q6)) * Qz0;
+        # temp[1]= np.cos(q5) * np.sin(q6) * Qx0 + (np.sin(q4) * np.sin(q5) * np.sin(q6) + np.cos(q4) * np.cos(q6)) * Qy0 + (np.cos(q4) * np.sin(q5) * np.sin(q6) - np.sin(q4) * np.cos(q6)) * Qz0;
+        # temp[2] = -np.sin(q5) * Qx0 + np.sin(q4) * np.cos(q5) * Qy0 + np.cos(q4) * np.cos(q5) * Qz0;
+        # print("{}".format(R_IL@temp))
         sys.stdout.flush()
         # cv2.imshow('Quadrotor State', img)
 
-        #time.sleep((1/24) - 0.001)
         wK = cv2.waitKey(1)
         if wK & 0xFF == ord('q'):
             cv2.destroyAllWindows()

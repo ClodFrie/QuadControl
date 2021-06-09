@@ -19,7 +19,7 @@ unsigned int crc0;
 
 // function prototypes
 FILE* initLogFile(char* mType);
-int writeLogLine(FILE* fd, double deltaT, struct QuadState* Quadptr, double Ft_i[]);
+int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double I_safeZ, struct QuadState* Quadptr, double Ft_i[]);
 
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
@@ -87,11 +87,12 @@ void* ioThread(void* vptr) {
 
     // plotPath(t1);  // gnuplot
 
-    double I_safeX = -1878.92;
-    double I_safeY = 705.49;
+    double I_safeX = 1141.00;
+    double I_safeY = 877.00;
+    double I_safeZ = 400;
     double Q_safeX = 0;
     double Q_safeY = 0;
-    double Q_safeZ = -600;
+    double Q_safeZ = -400;
     double Ft_i[4];
     double xo[12];
 
@@ -109,7 +110,7 @@ void* ioThread(void* vptr) {
             printf("st: %d,", state);
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
-                    if (Quadptr->I_z >= 0) {
+                    if (Quadptr->I_z >= 200) {
                         I_safeX = Quadptr->I_x;
                         I_safeY = Quadptr->I_y;
                         Q_safeX = Quadptr->Q_x;
@@ -146,7 +147,7 @@ void* ioThread(void* vptr) {
             sendCmd(&ftHandle);
 
             // write logfile
-            writeLogLine(fd, get_time_ms() - t1, Quadptr, Ft_i);
+            writeLogLine(fd, get_time_ms() - t1, I_safeX, I_safeY, I_safeZ, Quadptr, Ft_i);
         }
 
         t1 = get_time_ms();
@@ -189,15 +190,15 @@ FILE* initLogFile(char* mType) {
     }
 
     // write first line (header)
-    fprintf(fd, "T,dT,BAT,CPU,YAW,U_THRUST,I_X,I_Y,I_Z,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
+    fprintf(fd, "T,dT,BAT,CPU,YAW_QUAD,U_THRUST,I_safeX,I_safeY,I_safeZ,I_X,I_Y,I_Z,Q_X,Q_Y,Q_Z,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
 
     // return file descriptor for use in other functions
     return fd;
 }
 // write current data for every time step
-int writeLogLine(FILE* fd, double deltaT, struct QuadState* Quadptr, double Ft_i[]) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_roll_kal, Quadptr->Q_pitch_kal, Quadptr->Q_yaw_kal, Quadptr->Q_roll_dot_kal, Quadptr->Q_pitch_dot_kal, Quadptr->Q_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
+int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double I_safeZ, struct QuadState* Quadptr, double Ft_i[]) {
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+            ctrl.u_thrust, I_safeX, I_safeY, I_safeZ, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->Q_roll_kal, Quadptr->Q_x_kal, Quadptr->Q_y_kal, Quadptr->Q_z_kal, Quadptr->Q_pitch_kal, Quadptr->Q_yaw_kal, Quadptr->Q_roll_dot_kal, Quadptr->Q_pitch_dot_kal, Quadptr->Q_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
 
@@ -261,8 +262,8 @@ int updateState(struct QuadState* Quad) {
     // Quad->system_speeds[5] = -sin(q4) * Quad->Q_pitch_dot_kal + cos(q4) * cos(q5) * Quad->Q_yaw_dot_kal;
 
     Quad->I_x = cos(q5) * cos(q6) * Qx0 + (sin(q4) * sin(q5) * cos(q6) - cos(q4) * sin(q6)) * Qy0 + (cos(q4) * sin(q5) * cos(q6) + sin(q4) * sin(q6)) * Qz0;
-    Quad->I_y = cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0;
-    Quad->I_z = -sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0;
+    Quad->I_y = -(cos(q5) * sin(q6) * Qx0 + (sin(q4) * sin(q5) * sin(q6) + cos(q4) * cos(q6)) * Qy0 + (cos(q4) * sin(q5) * sin(q6) - sin(q4) * cos(q6)) * Qz0);
+    Quad->I_z = -(-sin(q5) * Qx0 + sin(q4) * cos(q5) * Qy0 + cos(q4) * cos(q5) * Qz0);
 
     // END critical section
     return 0;

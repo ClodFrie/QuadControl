@@ -8,16 +8,31 @@
 #include "../include/pid.h"
 #include "../include/quad.h"
 
+/*
 // MPC based controller
-int pathMPC(double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
+int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
     ctrl->u_thrust = 104 * 0;
 
-    
     // prepare MPC state variables
 
-    double x0[12] = {(I_safeX - Quad->Q_x_kal)/1000.0, (I_safeY - Quad->Q_y_kal)/1000.0, (I_safeZ - Quad->Q_z_kal)/1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal), 
-                    (-Quad->Q_x_dot_kal)/1000.0,(-Quad->Q_y_dot_kal)/1000.0,(-Quad->Q_z_dot_kal)/1000.0,(-Quad->Q_roll_dot_kal),(-Quad->Q_pitch_dot_kal),(-Quad->Q_yaw_dot_kal)};
+    // double x0[12] = {(Q_safeX - Quad->Q_x_kal) / 1000.0, (Q_safeY - Quad->Q_y_kal) / 1000.0, (Q_safeZ - Quad->Q_z_kal) / 1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal),
+    //           (-Quad->Q_x_dot_kal) / 1000.0, (-Quad->Q_y_dot_kal) / 1000.0, (-Quad->Q_z_dot_kal) / 1000.0, (-Quad->Q_roll_dot_kal), (-Quad->Q_pitch_dot_kal), (-Quad->Q_yaw_dot_kal)};
+    // double x0[12] = {(I_safeX-Quad->I_x)/5000.0,(I_safeY-Quad->I_y)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
+    //                 0,0,0,(Quad->Q_roll_dot_kal)/20.0, (Quad->Q_pitch_dot_kal)/20.0, -(Quad->Q_yaw_dot_kal)/20.0};
+    // double x0[12] = {0*(Q_safeX-Quad->Q_x_kal)/5000.0,0*(Q_safeY-Quad->Q_y_kal)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
+    //                 0,0,0,(Quad->Q_roll_dot_kal)/20.0, (Quad->Q_pitch_dot_kal)/20.0, -(Quad->Q_yaw_dot_kal)/20.0};
+    // double x0[12] = {0*(Q_safeX-Quad->Q_x_kal)/5000.0,0*(Q_safeY-Quad->Q_y_kal)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
+    // 0,0,0,0,0,0};
+
+    // double x0[12] = {(I_safeX - Quad->I_x_kal) / 1000.0, (I_safeY - Quad->I_y_kal) / 1000.0, (I_safeZ - Quad->I_z_kal) / 1000.0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-Quad->I_yaw_kal),
+    //           (-Quad->I_x_dot_kal) / 1000.0, (-Quad->I_y_dot_kal) / 1000.0, (-Quad->I_z_dot_kal) / 1000.0, (-Quad->I_roll_dot_kal), (-Quad->I_pitch_dot_kal), (-Quad->I_yaw_dot_kal)};
+
+    // double x0[12] = {0, 0, 0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-Quad->I_yaw_kal),
+    //                  0, 0, 0, (-Quad->I_roll_dot_kal), (-Quad->I_pitch_dot_kal), (-Quad->I_yaw_dot_kal)};
+
+    double x0[12] = {0, 0, 0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-0 * Quad->I_yaw_kal),
+                     0, 0, 0, (-Quad->I_roll_dot_kal) / 400.0, (-Quad->I_pitch_dot_kal) / 400.0, (-0 * Quad->I_yaw_dot_kal) / 400.0};
 
     // solve unconstrained optimal control problem
     solveOCP(Ft_i, x0);
@@ -31,7 +46,7 @@ int pathMPC(double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Qu
     // assign ctrl to be sent to the quadrocopter
     double F_equi = (1.3068 - 0.45) * 9.81 / 4.0;  // (m_body + 4 * m_rotor)*g / 4
     for (int i = 0; i < 4; i++) {
-        Ft_i[i] *= 0.10;
+        Ft_i[i] *= 0.80;
         if (Ft_i[i] >= 0) {
             ctrl->u_i[i] = (int)pow((Ft_i[i]) / C_T, 1 / power);
         } else {
@@ -39,8 +54,10 @@ int pathMPC(double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Qu
         }
     }
 }
-/*
-// PID Controller for a hovering flight
+*/
+
+
+//PID Controller for a hovering flight with onboard drone controller
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
     double m = 1.2;   // "kg"
@@ -56,10 +73,10 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     a_max = 2;     // m/s^2
     v_max = 0.05;  // m/s
     s_d = 0.5;     // m
-    continousPath(output, actTime, t0, a_max, v_max, s_d);
+    // continousPath(output, actTime, t0, a_max, v_max, s_d);
 
     // kalman
-    updatePID_statespace(pidx, actTime, ((I_safeX - output[2]) - Quad->I_x_kal) / 1000.0, output[1] - Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x_kal) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
     updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
     updatePID_statespace(pidz, actTime, (height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 
@@ -77,7 +94,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
     ctrl->u_thrust = thrust < 200 ? thrust : 200;
     // ctrl->u_thrust = thrust0;
-    printf("u_thrust,%u,", ctrl->u_thrust);
+    // printf("u_thrust,%u,", ctrl->u_thrust);
 
     double q6 = -Quad->yaw;  // TODO: fix this -> q6 needs to be in inertial frame
 
@@ -117,7 +134,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
 
     return 0;
 }
-*/
+
 
 int continousPath(double output[], double t, double t0, double a_max, double v_max, double s_d) {
     double tcons, accel, a, v, s, f1, f2, f3, f4, a1, a2;

@@ -109,9 +109,6 @@ void* ioThread(void* vptr) {
             // calculate desired movements
             printf("st: %d,", state);
 
-            // TODO: Delete this block
-            state = TAKEOFF;
-            //
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
                     if (Quadptr->I_z >= 200) {
@@ -125,6 +122,7 @@ void* ioThread(void* vptr) {
 
                             initPID(&pidx, 5.8, 0.60, 0.95, 6.20, get_time_ms());  // pidX
                             initPID(&pidy, 4.5, 0.40, 1.25, 6.25, get_time_ms());  // pidY
+                            initPID(&pidz, 1.05, 0.6, 5.4, 10, get_time_ms());     // pidZ
 
                             state = IDLE;  // change active state to idle
                         }
@@ -142,7 +140,7 @@ void* ioThread(void* vptr) {
 
                     // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
-                    calculateHover(I_safeZ, I_safeX, I_safeY, 0 /*deg*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(I_safeZ, I_safeX, I_safeY, 5 /*deg*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case HOVER:
 
@@ -218,7 +216,7 @@ int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double
     printf("[T],%3.2lf,", deltaT);
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,Fi:%3lf,%3lf,%3lf,%3lf\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d / 1000);
 }
 
 int updateState(struct QuadState* Quad) {

@@ -101,8 +101,8 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 
     // TODO: how does this work (where does the equation come from)
-    double roll_d = -asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
-    double pitch_d = -asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
+    double roll_d = asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
+    double pitch_d = asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
 
     roll_d = roll_d > maxAngle ? maxAngle : roll_d;       // limit angles
     roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;     // limit angles

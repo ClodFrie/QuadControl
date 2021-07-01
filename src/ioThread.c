@@ -122,6 +122,10 @@ void* ioThread(void* vptr) {
                             I_safeY = Quadptr->I_y;
                             Q_safeX = Quadptr->Q_x;
                             Q_safeY = Quadptr->Q_y;
+
+                            initPID(&pidx, 5.8, 0.60, 0.95, 6.20, get_time_ms());  // pidX
+                            initPID(&pidy, 4.5, 0.40, 1.25, 6.25, get_time_ms());  // pidY
+
                             state = IDLE;  // change active state to idle
                         }
                     }

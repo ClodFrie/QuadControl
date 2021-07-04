@@ -82,12 +82,12 @@ def calculateFramePosition():
     Q_cy = (R_QI.dot(I_cy.T)).T
     Q_cz = (R_QI.dot(I_cz.T)).T
 
-    fig = plt.figure()
-    ax = Axes3D(fig)
-    ax.plot3D(x0, y0, z0, 'x')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
+    # fig = plt.figure()
+    # ax = Axes3D(fig)
+    # ax.plot3D(x0, y0, z0, 'x')
+    # ax.set_xlabel('x')
+    # ax.set_ylabel('y')
+    # ax.set_zlabel('z')
 
     # plot something
     if False: 
@@ -132,7 +132,7 @@ def on_packet(packet):
     # only handle packets in a set interval
     global t_act
     t = time.time()
-    if t > t_act + 0.05:  # 0.05 = 50ms
+    if t > t_act + 0.04:  # 0.03 = 40ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:

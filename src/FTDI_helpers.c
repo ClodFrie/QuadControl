@@ -62,7 +62,7 @@ int sendParams(FT_HANDLE* ftHandle) {
     DWORD bytesWritten = 0;
     DWORD bytesReceived = 0;
     DWORD bytesRead = 0;
-    char str[] = "noths recvd\n";
+    char str[] = "NK";
     char* answer;
 
     ftStatus = FT_Write(*ftHandle, sendParams, sizeof(sendParams), &bytesWritten);
@@ -101,7 +101,7 @@ int sendParams(FT_HANDLE* ftHandle) {
     if (bytesRead != sizeof(str)) {
         return 1;
     }
-    if (bcmp(answer, "param recvd\n", sizeof(str)) != 0) {
+    if (bcmp(answer, "OK", (int)bytesReceived) != 0) {
         fprintf(stderr, "%s", answer);
         return 1;
     }
@@ -116,7 +116,7 @@ int sendCmd(FT_HANDLE* ftHandle) {
     DWORD bytesWritten = 0;
     DWORD bytesReceived = 0;
     DWORD bytesRead = 0;
-    char str[] = "noths recvd\n";
+    char str[] = "NK";
     char* answer;
 
     ftStatus = FT_Write(*ftHandle, sendCmd, sizeof(sendCmd), &bytesWritten);
@@ -156,7 +156,7 @@ int sendCmd(FT_HANDLE* ftHandle) {
     if (bytesRead != sizeof(str)) {
         return 1;
     }
-    if (bcmp(answer, "comms recvd\n", sizeof(str)) != 0) {
+    if (bcmp(answer, "OK", (int)bytesReceived) != 0) {
         printf("%s", answer);
         return 1;
     }

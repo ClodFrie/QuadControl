@@ -56,7 +56,6 @@ int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, doub
 }
 */
 
-
 //PID Controller for a hovering flight with onboard drone controller
 int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
@@ -88,7 +87,7 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     y_ddot = y_ddot > -1 ? y_ddot : -1;
 
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
-    unsigned char thrust0 = 104;
+    unsigned char thrust0 = 101;
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
@@ -96,13 +95,13 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // ctrl->u_thrust = thrust0;
     // printf("u_thrust,%u,", ctrl->u_thrust);
 
-    double q6 = -Quad->yaw;  // TODO: fix this -> q6 needs to be in inertial frame
+    double q6 = Quad->yaw;
 
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 
     // TODO: how does this work (where does the equation come from)
-    double roll_d = asin((x_ddot * sin(q6) + y_ddot * cos(q6)) / g);
-    double pitch_d = asin((y_ddot * sin(q6) - x_ddot * cos(q6)) / cos(roll_d) / g);
+    double roll_d = -asin((y_ddot * cos(q6) + x_ddot * sin(q6)) / g);
+    double pitch_d = -asin((x_ddot * cos(q6) - y_ddot * sin(q6)) / cos(roll_d) / g);
 
     roll_d = roll_d > maxAngle ? maxAngle : roll_d;       // limit angles
     roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;     // limit angles
@@ -115,26 +114,31 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // lowpass filter angle commands
     // roll_d = roll_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
     // pitch_d = pitch_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
-    
+
     // assign angle commands
     ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
     ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));
+
     // calculate yaw command
-    int maxDelta = 5000;  // 10 degrees max
-    ctrl->yaw_d = (210 - 45) * 1000;
+    int maxDelta = 5;  // 5 degrees max
+    ctrl->yaw_d = (210 - 45);
+
+    if (fabs(ctrl->roll_d) > 32760 || fabs(ctrl->pitch_d) > 32760) {
+        ctrl->roll_d = 0;
+        ctrl->pitch_d = 0;
+    }
 
     // assign yaw command
-    int yaw_delta = ctrl->yaw_d - data.angle_yaw * 1000;
+    int yaw_delta = ctrl->yaw_d - data.angle_yaw;
 
     if (yaw_delta > maxDelta) {
-        ctrl->yaw_d = data.angle_yaw * 1000 + maxDelta;
+        ctrl->yaw_d = data.angle_yaw + maxDelta;
     } else if (yaw_delta < -maxDelta) {
-        ctrl->yaw_d = data.angle_yaw * 1000 - maxDelta;
+        ctrl->yaw_d = data.angle_yaw - maxDelta;
     }
 
     return 0;
 }
-
 
 int continousPath(double output[], double t, double t0, double a_max, double v_max, double s_d) {
     double tcons, accel, a, v, s, f1, f2, f3, f4, a1, a2;

@@ -1,5 +1,6 @@
 #include <ftd2xx.h>
 #include <math.h>
+#include <sched.h>  // rt patch
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>  // for bzero
@@ -42,6 +43,14 @@ enum STATES {
 PID pidx, pidy, pidz;  // create pid variables
 
 void* ioThread(void* vptr) {
+    // declare this as a "real-time" task
+    struct sched_param param;
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO)-10;
+    if (sched_setscheduler(0, SCHED_FIFO, &param) == -1) {
+        printf("sched_setscheduler failed\n");
+        exit(-1);
+    }
+
     // cast pointer to QuadState type
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
@@ -71,7 +80,7 @@ void* ioThread(void* vptr) {
     initKalman();  // TODO: not working, why??
 
     // initialize MPC
-    initMPC();
+    // initMPC();
 
     // TODO: implement start trajectory logic
     // int startX = 0;
@@ -96,8 +105,9 @@ void* ioThread(void* vptr) {
     double Ft_i[4];
     double xo[12];
 
+    double t0 = get_time_ms();
     while (1) {  // do forever
-
+        
         // receive drone data
         requestData(&ftHandle);
         if (pthread_mutex_lock(&state_mutex) == 0) {
@@ -120,9 +130,9 @@ void* ioThread(void* vptr) {
                             Q_safeX = Quadptr->Q_x;
                             Q_safeY = Quadptr->Q_y;
 
-                            initPID(&pidx, 5.8, 0.60, 0.95, 6.20, get_time_ms());  // pidX
-                            initPID(&pidy, 4.5, 0.40, 1.25, 6.25, get_time_ms());  // pidY
-                            initPID(&pidz, 1.05, 0.6, 5.4, 10, get_time_ms());     // pidZ
+                            initPID(&pidx, 5.5, 0.30, 1.55, 6.20, get_time_ms());  // pidX
+                            initPID(&pidy, 8.2, 0.60, 1.95, 6.25, get_time_ms());  // pidY
+                            initPID(&pidz, 3.5, 1.5, 5.4, 10, get_time_ms());     // pidZ
 
                             state = IDLE;  // change active state to idle
                         }
@@ -140,7 +150,7 @@ void* ioThread(void* vptr) {
 
                     // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
-                    calculateHover(I_safeZ, I_safeX, I_safeY, 5 /*deg*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(I_safeZ, I_safeX, I_safeY, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case HOVER:
 
@@ -180,6 +190,9 @@ void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_
 
     params.kP_height = kP_height;
     params.kD_height = kD_height;
+
+    params.safeAngle = 15;  // degrees will be later multiplied on quadrotor
+
     params.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
 }
 
@@ -216,7 +229,7 @@ int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double
     printf("[T],%3.2lf,", deltaT);
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d / 1000);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d/1000, ctrl.pitch_d/1000, ctrl.yaw_d);
 }
 
 int updateState(struct QuadState* Quad) {

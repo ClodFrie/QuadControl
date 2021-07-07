@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>  // for bzero
+#include <unistd.h>
 
 #include "../../../asctec-sdk3.0-archive/serialcomm.h"
 #include "../include/FTDI_helpers.h"
@@ -13,6 +14,7 @@
 #include "../include/missionPlanning.h"
 #include "../include/pid.h"
 #include "../include/quad.h"
+#include "../include/serial_helpers.h"
 #include "../include/threads.h"
 #include "../include/time_helper.h"
 
@@ -45,7 +47,7 @@ PID pidx, pidy, pidz;  // create pid variables
 void* ioThread(void* vptr) {
     // declare this as a "real-time" task
     struct sched_param param;
-    param.sched_priority = sched_get_priority_max(SCHED_FIFO)-10;
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 10;
     if (sched_setscheduler(0, SCHED_FIFO, &param) == -1) {
         printf("sched_setscheduler failed\n");
         exit(-1);
@@ -56,17 +58,27 @@ void* ioThread(void* vptr) {
 
     // define starting state as INIT
     state = INIT;
+ 
+    int fdSerial;
+    #define SERIAL
+    #ifdef SERIAL
+    fdSerial = openPort(1);
 
+    if (fdSerial == -1) {
+        return NULL;
+    }
+    
+    #else
     // create ftdi handle
     FT_HANDLE ftHandle = NULL;
-
-    // initialize log file
-    FILE* fd = initLogFile("IDLE.X");
 
     // open FTDI device
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
+    #endif
+    // initialize log file
+    FILE* fd = initLogFile("IDLE.X");
 
     // zero all variables
     bzero(&data, sizeof(data));
@@ -77,7 +89,7 @@ void* ioThread(void* vptr) {
     unsigned char crc0 = crc8(0, NULL, 0);  // TODO: move this somewhere more intelligent
 
     // initialize kalman filter
-    initKalman();  // TODO: not working, why??
+    initKalman();
 
     // initialize MPC
     // initMPC();
@@ -89,7 +101,7 @@ void* ioThread(void* vptr) {
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
-    while (sendParams(&ftHandle) != 0) {
+    while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
         ;  // make sure that parameters have been received
     }
     printf("[PARAM] received succesfully!\n");
@@ -107,9 +119,10 @@ void* ioThread(void* vptr) {
 
     double t0 = get_time_ms();
     while (1) {  // do forever
-        
+
         // receive drone data
-        requestData(&ftHandle);
+        // requestData(&ftHandle);
+        requestData_ser(fdSerial);
         if (pthread_mutex_lock(&state_mutex) == 0) {
             updateState(Quadptr);
 
@@ -132,7 +145,7 @@ void* ioThread(void* vptr) {
 
                             initPID(&pidx, 5.5, 0.30, 1.55, 6.20, get_time_ms());  // pidX
                             initPID(&pidy, 6.2, 0.60, 1.95, 6.25, get_time_ms());  // pidY
-                            initPID(&pidz, 3.5, 1.5, 5.4, 10, get_time_ms());     // pidZ
+                            initPID(&pidz, 3.5, 1.5, 5.4, 10, get_time_ms());      // pidZ
 
                             state = IDLE;  // change active state to idle
                         }
@@ -164,7 +177,8 @@ void* ioThread(void* vptr) {
 
             // write control commands - only if new data has been generated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
-            sendCmd(&ftHandle);
+            // sendCmd(&ftHandle);
+            sendCommand(fdSerial);
 
             // write logfile
             writeLogLine(fd, get_time_ms() - t1, I_safeX, I_safeY, I_safeZ, Quadptr, Ft_i);
@@ -174,8 +188,12 @@ void* ioThread(void* vptr) {
     }
 
     // free resources
-    if (ftHandle != NULL) {
-        FT_Close(ftHandle);
+    // if (ftHandle != NULL) {
+    //     FT_Close(ftHandle);
+    //     fclose(fd);
+    // }
+    if (fdSerial != -1){
+        close(fdSerial);
         fclose(fd);
     }
     return NULL;
@@ -229,7 +247,7 @@ int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double
     printf("[T],%3.2lf,", deltaT);
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d/1000, ctrl.pitch_d/1000, ctrl.yaw_d);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d);
 }
 
 int updateState(struct QuadState* Quad) {

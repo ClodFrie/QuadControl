@@ -169,7 +169,7 @@ int openFTDI(FT_HANDLE* ftHandle) {
     // source: FTDI Examples
     int portNum = 0;
     int driverVersion = 0;
-    int baudRate = 57600;  // fixed for device - could theoretically be set higher
+    int baudRate = 115200;  // 57600 fixed for device - could theoretically be set higher
     FT_STATUS ftStatus;
 
     printf("Opening FTDI device %d.\n", portNum);
@@ -234,5 +234,11 @@ int openFTDI(FT_HANDLE* ftHandle) {
         return -1;
         ;
     }
+    // ftStatus = FT_SetTimeouts(ftHandle, 1000, 1000);
+    // if (ftStatus != FT_OK) {
+    //     fprintf(stderr, "Failure.  FT_SetTimouts returned %d.\n", (int)ftStatus);
+    //     return -1;
+    // }
+
     return 0;
 }

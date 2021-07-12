@@ -62,7 +62,7 @@ void* ioThread(void* vptr) {
     int fdSerial;
     #define SERIAL
     #ifdef SERIAL
-    fdSerial = openPort(1);
+    fdSerial = openPort(0);
 
     if (fdSerial == -1) {
         return NULL;
@@ -90,6 +90,7 @@ void* ioThread(void* vptr) {
 
     // initialize kalman filter
     initKalman();
+    printf("Kalman started\n");
 
     // initialize MPC
     // initMPC();
@@ -101,6 +102,7 @@ void* ioThread(void* vptr) {
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
+    printf("[PARAM] Parameters set\n");
     while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
         ;  // make sure that parameters have been received
     }
@@ -117,12 +119,17 @@ void* ioThread(void* vptr) {
     double Ft_i[4];
     double xo[12];
 
+    unsigned long int cnt = 0;
+
     double t0 = get_time_ms();
     while (1) {  // do forever
 
         // receive drone data
         // requestData(&ftHandle);
-        requestData_ser(fdSerial);
+        if(cnt % 20 == 0){ // every n-th time
+            requestData_ser(fdSerial); // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
+        }
+        cnt++;
         if (pthread_mutex_lock(&state_mutex) == 0) {
             updateState(Quadptr);
 

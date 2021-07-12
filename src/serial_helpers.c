@@ -34,7 +34,7 @@ int openPort(char portNo) {
 }
 
 int sendCommand(int fd) {
-    char sendCmd[] = ">*>c";
+    char sendCmd[] = {'>', '*', '>', 'c'};
     write(fd, sendCmd, sizeof(sendCmd));
     tcdrain(fd);
     unsigned char crc0 = crc8(0, NULL, 0);
@@ -59,7 +59,7 @@ int sendCommand(int fd) {
     int tmpRec = 0;
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (receivedBytes < sizeof(answer)) {
-        tmpRec = read(fd, answer + receivedBytes, FIFO_BUFFER_SIZE);  // read serial data
+        tmpRec = read(fd, answer + receivedBytes, sizeof(answer));  // read serial data
         receivedBytes += tmpRec;
         if (get_time_ms() > endTime) {
             return -1;
@@ -68,7 +68,8 @@ int sendCommand(int fd) {
 }
 
 int requestData_ser(int fd) {
-    char reqData[] = ">*>d";
+    char reqData[] = {'>', '*', '>', 'd'};
+    ;
 
     int receivedBytes = 0;
     int tmpRec = 0;
@@ -83,10 +84,6 @@ int requestData_ser(int fd) {
     while (receivedBytes < sizeof(data) && get_time_ms() < endTime) {
         tmpRec = read(fd, rptr + receivedBytes, FIFO_BUFFER_SIZE);  // read serial data
         receivedBytes += tmpRec;
-        double actTime = get_time_ms();
-        if (actTime > endTime) {
-            bzero(&data, sizeof(data));  // clear already received data
-        }
     }
 
     unsigned char crc0 = crc8(0, NULL, 0);
@@ -97,12 +94,12 @@ int requestData_ser(int fd) {
     }
 }
 int sendParameters(int fd) {
-    char sendParam[] = ">*>p";
+    char sendParam[] = {'>', '*', '>', 'p'};
     write(fd, sendParam, sizeof(sendParam));
     tcdrain(fd);
-
     unsigned char crc0 = crc8(0, NULL, 0);
     ctrl.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
+    double endTime = get_time_ms() + MS_TIMEOUT;
 
     unsigned char* ptr = (unsigned char*)&params;
     int bytesLeft = sizeof(params);
@@ -116,27 +113,32 @@ int sendParameters(int fd) {
             tcdrain(fd);
             bytesLeft = 0;
         }
-    }
-
-    
-    usleep(1000);
-    char answer[] = "NK";
-    int receivedBytes = 0;
-    int tmpRec = 0;
-    double endTime = get_time_ms() + MS_TIMEOUT;
-    while (receivedBytes < sizeof(answer)) {
-        tmpRec = read(fd, answer + receivedBytes, FIFO_BUFFER_SIZE);  // read serial data
-        receivedBytes += tmpRec;
         if (get_time_ms() > endTime) {
+            fprintf(stderr, "[PARAM] read timed out %lf \n", get_time_ms() - endTime);
             return -1;
         }
     }
 
-    if (bcmp(answer, "OK", (int)receivedBytes) != 0) {
-        fprintf(stderr, "%s", answer);
-        return 0;
+    usleep(1000);
+    char answer[] = "NK";
+    int receivedBytes = 0;
+    int tmpRec = 0;
+    while (receivedBytes < sizeof(answer)) {
+        tmpRec = read(fd, answer + receivedBytes, sizeof(answer));  // read serial data
+        receivedBytes += tmpRec;
+        if (get_time_ms() > endTime) {
+            printf("[PARAM] read timed out %lf \n", get_time_ms() - endTime);
+            return -1;
+        }
     }
-    return -1;
+
+    if (bcmp(answer, "OK", sizeof(answer)) != 0) {
+        printf("[PARAM] %s\n", answer);
+        return 0;
+    } else {
+        printf("[PARAM] %s\n", answer);
+        return -1;
+    }
 }
 void configurePort(int fd) {
     // for information about port settings refer to

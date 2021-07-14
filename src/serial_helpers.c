@@ -132,10 +132,12 @@ int sendParameters(int fd) {
         }
     }
 
-    if (bcmp(answer, "OK", sizeof(answer)) != 0) {
+    if (bcmp(answer, "OK", sizeof(answer)) == 0) {
+        // it worked
         printf("[PARAM] %s\n", answer);
         return 0;
     } else {
+        // error
         printf("[PARAM] %s\n", answer);
         return -1;
     }

@@ -132,7 +132,7 @@ def on_packet(packet):
     # only handle packets in a set interval
     global t_act
     t = time.time()
-    if t > t_act + 0.04:  # 0.03 = 40ms
+    if t > t_act + 0.03:  #  = 30ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
@@ -240,7 +240,8 @@ def on_packet(packet):
 
 async def setup():
     """ Main function """
-    connection = await qtm.connect("192.168.137.1")
+    #connection = await qtm.connect("192.168.137.1")
+    connection = await qtm.connect("192.168.0.101")
     if connection is None:
         return
 

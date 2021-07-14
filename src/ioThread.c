@@ -62,7 +62,7 @@ void* ioThread(void* vptr) {
     int fdSerial;
     #define SERIAL
     #ifdef SERIAL
-    fdSerial = openPort(0);
+    fdSerial = openPort(1);
 
     if (fdSerial == -1) {
         return NULL;
@@ -102,7 +102,6 @@ void* ioThread(void* vptr) {
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
-    printf("[PARAM] Parameters set\n");
     while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
         ;  // make sure that parameters have been received
     }

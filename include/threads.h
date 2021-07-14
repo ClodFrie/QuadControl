@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 void* ioThread(void*);
-void* consoleThread(void*);
+void* serialThread(void*);
 void* pipeThread(void*);
 
 extern pthread_mutex_t state_mutex;

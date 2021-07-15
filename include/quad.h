@@ -25,6 +25,12 @@ struct QuadState {
     double quadStartTime;
     double trajectoryStartTime;
 
+    // measurements from ultrasonic sensor and camera
+    struct IMUC{
+        double B_distance0,B_distance1,B_distance2,B_averageDistance,angle_yaw;
+    
+    }IMUC;
+
     // Body Frame filtered
     // double Q_x_kal, Q_y_kal, Q_z_kal;
     // double Q_x_dot_kal, Q_x_ddot_kal, Q_x_dddot_kal, Q_y_dot_kal, Q_y_ddot_kal, Q_y_dddot_kal, Q_z_dot_kal, Q_z_ddot_kal, Q_z_dddot_kal;

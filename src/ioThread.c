@@ -57,17 +57,16 @@ void* ioThread(void* vptr) {
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
     // define starting state as INIT
-    state = INIT;
+    state = IMUC_HOVER;
 
     int fdSerial;
 #define SERIAL
 #ifdef SERIAL
-    fdSerial = openPort(0);
+    fdSerial = openPort('F' - '0');
 
     if (fdSerial == -1) {
         return NULL;
     }
-
 #else
     // create ftdi handle
     FT_HANDLE ftHandle = NULL;
@@ -102,18 +101,23 @@ void* ioThread(void* vptr) {
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
-    // setParams(0, 0, 0, 0, 0, 0);
+
     while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
         ;  // make sure that parameters have been received
     }
     printf("[PARAM] received succesfully!\n");
+    ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
+    // while (sendCommand(fdSerial) != 0) {
+    //     ; // send command once to reset all previous motor commands
+    // }
+    // printf("[CMD] reset succesfully!\n");
     fflush(0);
     // while(1);
 
     // plotPath(t1);  // gnuplot
 
+    double I_safeX0, I_safeY0;
     double I_safeX = 0;
-    double I_safeX0 = 0;
     double I_safeY = 0;
     double I_safeZ = 500;
     double Q_safeX = 0;
@@ -152,13 +156,14 @@ void* ioThread(void* vptr) {
                         double delta = 0.01;  // 0.01 mm deviation
                         if (fabs(Quadptr->I_x - Quadptr->I_x_kal) < delta && fabs(Quadptr->I_y - Quadptr->I_y_kal) < delta) {
                             I_safeX = Quadptr->I_x;
-                            I_safeX0 = I_safeX;
                             I_safeY = Quadptr->I_y;
+                            I_safeX0 = I_safeX;
+                            I_safeY0 = I_safeY;
                             Q_safeX = Quadptr->Q_x;
                             Q_safeY = Quadptr->Q_y;
 
-                            initPID(&pidx, 3.2, 0.30, 1.65, 6.20, get_time_ms());  // pidX
-                            initPID(&pidy, 4.2, 0.90, 1.25, 6.25, get_time_ms());  // pidY
+                            initPID(&pidx, 2.0, 0.2, 0.9, 6.20, get_time_ms());  // pidX
+                            initPID(&pidy, 2.3, 0.7, 1.1, 6.25, get_time_ms());  // pidY
 
                             initPID(&pidz, 2.0, 2.2, 6.2, 10, get_time_ms());  // pidZ
 
@@ -180,12 +185,17 @@ void* ioThread(void* vptr) {
 
                     // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
-                    calculateHover(&I_safeZ, I_safeX0, &I_safeX, &I_safeY, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(&I_safeZ, I_safeX0, &I_safeX, I_safeY0, &I_safeY, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case HOVER:
 
                     break;
                 case RECTANGULAR_TRAJECTORY:
+                    break;
+                case IMUC_HOVER:
+                    calculateIMUCHover(get_time_ms(), 0.3, Quadptr, 7, &pidz) ;
+                    break;
+                case IMUC_ONLINE_TRAJECTORY:
                     break;
                 default:
                     printf("illegal state\n");
@@ -248,15 +258,15 @@ FILE* initLogFile(char* mType) {
     }
 
     // write first line (header)
-    fprintf(fd, "T,dT,BAT,CPU,YAW_QUAD,U_THRUST,I_safeX,I_safeY,I_safeZ,I_X,I_Y,I_Z,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
+    fprintf(fd, "T,dT,BAT,CPU,YAW_QUAD,U_THRUST,I_safeX,I_safeY,I_safeZ,I_X,I_Y,I_Z,B_z,B_dist,B_angle,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
 
     // return file descriptor for use in other functions
     return fd;
 }
 // write current data for every time step
 int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double I_safeZ, struct QuadState* Quadptr, double Ft_i[]) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, I_safeX, I_safeY, I_safeZ, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_roll_kal, Quadptr->I_pitch_kal, Quadptr->I_yaw_kal, Quadptr->I_roll_dot_kal, Quadptr->I_pitch_dot_kal, Quadptr->I_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
+    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
+            ctrl.u_thrust, I_safeX, I_safeY, I_safeZ, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z,Quadptr->IMUC.B_distance0,Quadptr->IMUC.B_averageDistance,Quadptr->IMUC.angle_yaw, Quadptr->I_roll_kal, Quadptr->I_pitch_kal, Quadptr->I_yaw_kal, Quadptr->I_roll_dot_kal, Quadptr->I_pitch_dot_kal, Quadptr->I_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
 
     fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
 
@@ -264,7 +274,7 @@ int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double
     printf("[T],%3.2lf,", deltaT);
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d);
+    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,B_z,%6.2lf,B_dist,%6.2lf,B_angle,%2.2lf,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z,Quadptr->IMUC.B_distance0,Quadptr->IMUC.B_averageDistance,Quadptr->IMUC.angle_yaw, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d);
     // printf("roll%lf,pitch%lf,yaw%d",data.angle_roll/1000.0,data.angle_pitch/1000.0,data.angle_yaw);
     // printf("u:%d,%d,%d,%d\n",data.u[0],data.u[1],data.u[2],data.u[3]);
 }

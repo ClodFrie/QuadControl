@@ -56,9 +56,37 @@ int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, doub
     }
 }
 */
+// IMUC Flight
+int calculateIMUCHover(double actTime, double targetHeight, struct QuadState* Quad, double maxAngle_deg, PID* pidz) {
+    double g = 9.81;                                // m/s^2
+    double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
+
+    updatePID(pidz, actTime, targetHeight - Quad->IMUC.B_distance0);
+
+    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104 // with more sensors (weight) it's 109
+    unsigned char thrust0 = 109;
+
+    // assign pid to u_thrust only if positive
+    double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
+    ctrl.u_thrust = thrust < 200 ? thrust : 200;
+
+    // calculate yaw command
+    int maxDelta = 5;  // 5 degrees max
+    Quad->IMUC.angle_yaw *= -1;
+    int tmp_angle = data.angle_yaw - (short)Quad->IMUC.angle_yaw;
+
+    if (Quad->IMUC.angle_yaw > maxDelta) {
+        tmp_angle = data.angle_yaw + maxDelta;
+    } else if (Quad->IMUC.angle_yaw < -maxDelta) {
+        tmp_angle = data.angle_yaw - maxDelta;
+    }
+    ctrl.yaw_d = 0.9*ctrl.yaw_d + 0.1 * tmp_angle;
+
+    return 0;
+}
 
 //PID Controller for a hovering flight with onboard drone controller
-int calculateHover(double* height, double I_safeX0,double* I_safeX, double* I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
+int calculateHover(double* height, double I_safeX0, double* I_safeX, double I_safeY0, double* I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
     double m = 1.2;   // "kg"
     double x_ddot, y_ddot;
@@ -66,21 +94,37 @@ int calculateHover(double* height, double I_safeX0,double* I_safeX, double* I_sa
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
 
     // path planning
-    double output[4] = {};
+    double outputX[4] = {};
+    double outputY[4] = {};
     double t, t0, a_max, v_max, s_d;
     t = (get_time_ms() - Quad->quadStartTime) / 1000.0;
-    t0 = 20;       // s
+    t0 = 8;        // s
     a_max = 0.25;  // m/s^2
     v_max = 0.1;   // m/s
-    s_d = -0.5;     // m
-    continousPath(output, t, t0, a_max, v_max, s_d);
+
+    continousPath(outputX, 0, 0, a_max, v_max, s_d);
+    double trajTime = 8 + 4;  //outputX[3]+4;
+
+    // Square Trajectory
+    s_d = 0.5;  // m // Square dimension
+    if (t < t0 + 2 * trajTime) {
+        continousPath(outputX, t, t0, a_max, v_max, s_d);
+        continousPath(outputY, t, t0 + trajTime, a_max, v_max, s_d);
+        *I_safeX = I_safeX0 + (int)(outputX[2] * 1000);
+        *I_safeY = I_safeY0 + (int)(outputY[2] * 1000);
+    } else {
+        continousPath(outputX, t, t0 + 2 * trajTime, a_max, v_max, -s_d);
+        continousPath(outputY, t, t0 + 3 * trajTime, a_max, v_max, -s_d);
+        outputX[2] += s_d;
+        outputY[2] += s_d;
+        *I_safeX = I_safeX0 + (int)(outputX[2] * 1000) + s_d;
+        *I_safeY = I_safeY0 + (int)(outputY[2] * 1000) + s_d;
+    }
     // printf("time %lf\n", output[3]);
 
-    *I_safeX = I_safeX0 + (int)(output[2]*1000); // TODO: change this
-
     // PID Controller for position and speed correction of quadrotor
-    updatePID_statespace(pidx, actTime, (*I_safeX - Quad->I_x_kal) / 1000.0, output[1] - Quad->I_x_dot_kal / 1000.0);
-    updatePID_statespace(pidy, actTime, (*I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
+    updatePID_statespace(pidx, actTime, (*I_safeX - Quad->I_x_kal) / 1000.0, outputX[1] - Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidy, actTime, (*I_safeY - Quad->I_y_kal) / 1000.0, outputY[1] - Quad->I_y_dot_kal / 1000.0);
 
     updatePID_statespace(pidz, actTime, (*height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 
@@ -94,8 +138,8 @@ int calculateHover(double* height, double I_safeX0,double* I_safeX, double* I_sa
     // printf("u_thrust,%u,", ctrl->u_thrust);
 
     // assign acceleration from trajectory planner
-    x_ddot = output[0] + pidx->currentValue;
-    y_ddot = pidy->currentValue;
+    x_ddot = outputX[0] + pidx->currentValue;
+    y_ddot = outputY[0] + pidy->currentValue;
 
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 

@@ -27,12 +27,12 @@ int main() {
     pthread_t p_ioThread, p_serialThread, p_pipeThread;
 
     pthread_create(&p_ioThread, NULL, ioThread, &Quad);
-    // pthread_create(&p_serialThread, NULL, serialThread, &Quad);
-    pthread_create(&p_pipeThread, NULL, pipeThread, &Quad);
+    pthread_create(&p_serialThread, NULL, serialThread, &Quad);
+    // pthread_create(&p_pipeThread, NULL, pipeThread, &Quad);
 
     pthread_join(p_ioThread, NULL);
-    // pthread_join(p_serialThread, NULL);
-    pthread_join(p_pipeThread, NULL); 
+    pthread_join(p_serialThread, NULL);
+    // pthread_join(p_pipeThread, NULL); 
     
     return 0;
 }

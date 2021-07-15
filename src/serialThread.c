@@ -21,35 +21,35 @@ void* serialThread(void* vptr) {
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
     // open serial port
-    int fd = openPort(0);
+    int fd = openPort('A'-'0');
     if (fd < 0) {
         printf("[SERIAL] open port failed");
         exit(1);
     }
-    usleep(100000);
+    usleep(10000);
 
     printf("[SERIAL] ready to read\n");
     char inLine[1024];
     while (1 /*fgets(inLine, sizeof(inLine), fd) != NULL*/) {
         // printf("%s",inLine); //DEBUG
-        if (pthread_mutex_trylock(&state_mutex) == 0) {  // lock succesful
-            char endofline = 0;
-            int tmpRec = 0;
-            double t0 = get_time_ms();
-            while (!endofline) {
-                tmpRec += read(fd, inLine + tmpRec, 20);  // read serial data
-                for (int i = 0; i < tmpRec; i++) {        //synchronize to '\n'
-                    if (inLine[i] == '\n') {
-                        endofline = 1;
-                        inLine[i + 1] = '\0';  // end string
-                        break;
-                    }
+        char endofline = 0;
+        int tmpRec = 0;
+        double t0 = get_time_ms();
+        while (!endofline) {
+            tmpRec += read(fd, inLine + tmpRec, 20);  // read serial data
+            for (int i = 0; i < tmpRec; i++) {        //synchronize to '\n'
+                if (inLine[i] == '\n') {
+                    endofline = 1;
+                    inLine[i + 1] = '\0';  // end string
+                    break;
                 }
             }
+        }
 
+
+        if (pthread_mutex_trylock(&state_mutex) == 0) {  // lock succesful
             double time, dist0, dist1, dist2, dist3, angle;
-            sscanf(inLine, "%lfs\t%lf\t%lf\t%lf\t%lf\t%lf\n", &time, &dist0, &dist1, &dist2, &dist3, &angle);
-
+            sscanf(inLine, "%lfs\t%lf\t%lf\t%lf\t%lf\t%lf\n", &time, &Quadptr->IMUC.B_distance0,&Quadptr->IMUC.B_distance1, &Quadptr->IMUC.B_distance2, &Quadptr->IMUC.B_averageDistance, &Quadptr->IMUC.angle_yaw);
             pthread_mutex_unlock(&state_mutex);  // unlock mutex
         }
     }

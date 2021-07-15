@@ -60,7 +60,7 @@ void* ioThread(void* vptr) {
     state = INIT;
 
     int fdSerial;
-// #define SERIAL
+#define SERIAL
 #ifdef SERIAL
     fdSerial = openPort(0);
 
@@ -103,7 +103,7 @@ void* ioThread(void* vptr) {
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
     // setParams(0, 0, 0, 0, 0, 0);
-    while (sendParams(&ftHandle) /*sendParameters(fdSerial) != 0*/) {
+    while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
         ;  // make sure that parameters have been received
     }
     printf("[PARAM] received succesfully!\n");
@@ -129,8 +129,8 @@ void* ioThread(void* vptr) {
 
         // receive drone data
         if (cnt % 20 == 0 || data.battery_voltage == 0) {  // every n-th time
-            // requestData_ser(fdSerial);                     // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
-            requestData(&ftHandle);
+            requestData_ser(fdSerial);                     // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
+            // requestData(&ftHandle);
         }
         cnt++;
         if (pthread_mutex_lock(&state_mutex) == 0) {
@@ -194,8 +194,8 @@ void* ioThread(void* vptr) {
 
             // write control commands - only if new data has been generated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
-            sendCmd(&ftHandle);
-            // sendCommand(fdSerial);
+            // sendCmd(&ftHandle);
+            sendCommand(fdSerial);
 
             // write logfile
             writeLogLine(fd, get_time_ms() - t1, I_safeX, I_safeY, I_safeZ, Quadptr, Ft_i);

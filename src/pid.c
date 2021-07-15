@@ -46,6 +46,7 @@ void updatePID(PID* pid, double actTime, double input) {
 void updatePID_statespace(PID* pid, double actTime, double position, double speed) {
     // calculate deltaT (Ta) --> because we have no real time system, this can change every loop iteration ;)
     double Ta = (actTime - pid->prevTime) / 1000.0;  // Ta in s
+    // Ta = 0.03;
 
     // integrate one time step
     double intValue = pid->intValue + (pid->prevInput * Ta);

@@ -169,7 +169,7 @@ int openFTDI(FT_HANDLE* ftHandle) {
     // source: FTDI Examples
     int portNum = 0;
     int driverVersion = 0;
-    int baudRate = 115200;  // 57600 fixed for device - could theoretically be set higher
+    int baudRate = 57600;  // 57600 fixed for device - could theoretically be set higher
     FT_STATUS ftStatus;
 
     printf("Opening FTDI device %d.\n", portNum);

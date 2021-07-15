@@ -65,6 +65,15 @@ int sendCommand(int fd) {
             return -1;
         }
     }
+
+    if (bcmp(answer, "OK", sizeof(answer)) == 0) {
+        // it worked
+        return 0;
+    } else {
+        // error
+        printf("[CMD] %s\n", answer);
+        return -1;
+    }
 }
 
 int requestData_ser(int fd) {
@@ -151,7 +160,7 @@ void configurePort(int fd) {
 
     bzero(&port_settings, sizeof(port_settings));  // empty port_settings
 
-    port_settings.c_cflag = B115200 /*| CRTSCTS*/ | CS8 | CLOCAL | CREAD;
+    port_settings.c_cflag = B57600 /*| CRTSCTS*/ | CS8 | CLOCAL | CREAD;
     port_settings.c_iflag = IGNPAR;
     port_settings.c_oflag = 0;
     /*set input mode (non-canonical, no echo, ...)*/

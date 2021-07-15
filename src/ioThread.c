@@ -58,17 +58,17 @@ void* ioThread(void* vptr) {
 
     // define starting state as INIT
     state = INIT;
- 
+
     int fdSerial;
-    #define SERIAL
-    #ifdef SERIAL
-    fdSerial = openPort(1);
+// #define SERIAL
+#ifdef SERIAL
+    fdSerial = openPort(0);
 
     if (fdSerial == -1) {
         return NULL;
     }
-    
-    #else
+
+#else
     // create ftdi handle
     FT_HANDLE ftHandle = NULL;
 
@@ -76,7 +76,7 @@ void* ioThread(void* vptr) {
     if (openFTDI(&ftHandle) < 0) {
         return NULL;
     }
-    #endif
+#endif
     // initialize log file
     FILE* fd = initLogFile("IDLE.X");
 
@@ -102,14 +102,18 @@ void* ioThread(void* vptr) {
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
-    while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
+    // setParams(0, 0, 0, 0, 0, 0);
+    while (sendParams(&ftHandle) /*sendParameters(fdSerial) != 0*/) {
         ;  // make sure that parameters have been received
     }
     printf("[PARAM] received succesfully!\n");
+    fflush(0);
+    // while(1);
 
     // plotPath(t1);  // gnuplot
 
     double I_safeX = 0;
+    double I_safeX0 = 0;
     double I_safeY = 0;
     double I_safeZ = 500;
     double Q_safeX = 0;
@@ -124,9 +128,9 @@ void* ioThread(void* vptr) {
     while (1) {  // do forever
 
         // receive drone data
-        // requestData(&ftHandle);
-        if(cnt % 20 == 0){ // every n-th time
-            requestData_ser(fdSerial); // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
+        if (cnt % 20 == 0 || data.battery_voltage == 0) {  // every n-th time
+            // requestData_ser(fdSerial);                     // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
+            requestData(&ftHandle);
         }
         cnt++;
         if (pthread_mutex_lock(&state_mutex) == 0) {
@@ -140,36 +144,43 @@ void* ioThread(void* vptr) {
 
             switch (state) {
                 case INIT:  // wait for measurements from Qualisys system
+
+                    // TODO: send 0 to all motors, angles, etc.
+
                     if (Quadptr->I_z >= 200) {
                         // additional criteria, wait for kalman filter to converge
                         double delta = 0.01;  // 0.01 mm deviation
                         if (fabs(Quadptr->I_x - Quadptr->I_x_kal) < delta && fabs(Quadptr->I_y - Quadptr->I_y_kal) < delta) {
                             I_safeX = Quadptr->I_x;
+                            I_safeX0 = I_safeX;
                             I_safeY = Quadptr->I_y;
                             Q_safeX = Quadptr->Q_x;
                             Q_safeY = Quadptr->Q_y;
 
-                            initPID(&pidx, 5.5, 0.30, 1.55, 6.20, get_time_ms());  // pidX
-                            initPID(&pidy, 6.2, 0.60, 1.95, 6.25, get_time_ms());  // pidY
-                            initPID(&pidz, 3.5, 1.5, 5.4, 10, get_time_ms());      // pidZ
+                            initPID(&pidx, 3.2, 0.30, 1.65, 6.20, get_time_ms());  // pidX
+                            initPID(&pidy, 4.2, 0.90, 1.25, 6.25, get_time_ms());  // pidY
+
+                            initPID(&pidz, 2.0, 2.2, 6.2, 10, get_time_ms());  // pidZ
 
                             state = IDLE;  // change active state to idle
                         }
                     }
                     break;
                 case IDLE:  // wait for some kind of start signal
+                    Quadptr->quadStartTime = get_time_ms();
 
                     // currently there is no idle state
                     state = TAKEOFF;
 
                     break;
                 case TAKEOFF:
+
                     // currently there is no takeoff state
                     // state = HOVER;
 
                     // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
-                    calculateHover(I_safeZ, I_safeX, I_safeY, 7, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(&I_safeZ, I_safeX0, &I_safeX, &I_safeY, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
                     break;
                 case HOVER:
 
@@ -183,8 +194,8 @@ void* ioThread(void* vptr) {
 
             // write control commands - only if new data has been generated
             ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
-            // sendCmd(&ftHandle);
-            sendCommand(fdSerial);
+            sendCmd(&ftHandle);
+            // sendCommand(fdSerial);
 
             // write logfile
             writeLogLine(fd, get_time_ms() - t1, I_safeX, I_safeY, I_safeZ, Quadptr, Ft_i);
@@ -198,7 +209,7 @@ void* ioThread(void* vptr) {
     //     FT_Close(ftHandle);
     //     fclose(fd);
     // }
-    if (fdSerial != -1){
+    if (fdSerial != -1) {
         close(fdSerial);
         fclose(fd);
     }
@@ -254,6 +265,8 @@ int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double
     printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
 
     printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,I_x_dot,%6.2f,I_y_dot,%6.2f,I_z_dot,%6.2f,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z, Quadptr->I_x_dot_kal, Quadptr->I_y_dot_kal, Quadptr->I_z_dot_kal, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d);
+    // printf("roll%lf,pitch%lf,yaw%d",data.angle_roll/1000.0,data.angle_pitch/1000.0,data.angle_yaw);
+    // printf("u:%d,%d,%d,%d\n",data.u[0],data.u[1],data.u[2],data.u[3]);
 }
 
 int updateState(struct QuadState* Quad) {

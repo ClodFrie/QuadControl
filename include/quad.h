@@ -21,7 +21,9 @@ struct QuadState {
     double I_roll_kal,I_pitch_kal,I_yaw_kal;
     double I_roll_dot_kal,I_pitch_dot_kal,I_yaw_dot_kal,I_roll_ddot_kal,I_pitch_ddot_kal,I_yaw_ddot_kal,I_roll_dddot_kal,I_pitch_dddot_kal,I_yaw_dddot_kal;
 
-
+    // time for trajectory planning
+    double quadStartTime;
+    double trajectoryStartTime;
 
     // Body Frame filtered
     // double Q_x_kal, Q_y_kal, Q_z_kal;

@@ -7,6 +7,7 @@
 #include "../include/MPC.h"
 #include "../include/pid.h"
 #include "../include/quad.h"
+#include "../include/time_helper.h"
 
 /*
 // MPC based controller
@@ -57,7 +58,7 @@ int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, doub
 */
 
 //PID Controller for a hovering flight with onboard drone controller
-int calculateHover(double height, double I_safeX, double I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
+int calculateHover(double* height, double I_safeX0,double* I_safeX, double* I_safeY, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz, double actTime) {
     double g = 9.81;  // m/s^2
     double m = 1.2;   // "kg"
     double x_ddot, y_ddot;
@@ -65,29 +66,26 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
 
     // path planning
-    double output[6] = {};
+    double output[4] = {};
     double t, t0, a_max, v_max, s_d;
-    t = 0;
-    t0 = 10;       // s
-    a_max = 2;     // m/s^2
-    v_max = 0.05;  // m/s
-    s_d = 0.5;     // m
-    // continousPath(output, actTime, t0, a_max, v_max, s_d);
+    t = (get_time_ms() - Quad->quadStartTime) / 1000.0;
+    t0 = 20;       // s
+    a_max = 0.25;  // m/s^2
+    v_max = 0.1;   // m/s
+    s_d = -0.5;     // m
+    continousPath(output, t, t0, a_max, v_max, s_d);
+    // printf("time %lf\n", output[3]);
 
-    // kalman
-    updatePID_statespace(pidx, actTime, (I_safeX - Quad->I_x_kal) / 1000.0, -Quad->I_x_dot_kal / 1000.0);
-    updatePID_statespace(pidy, actTime, (I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
-    updatePID_statespace(pidz, actTime, (height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
+    *I_safeX = I_safeX0 + (int)(output[2]*1000); // TODO: change this
 
-    // asin() is only defined for range [-1,1] therefore limiting is needed
-    x_ddot = pidx->currentValue < 1 ? pidx->currentValue : 1;
-    x_ddot = x_ddot > -1 ? x_ddot : -1;
+    // PID Controller for position and speed correction of quadrotor
+    updatePID_statespace(pidx, actTime, (*I_safeX - Quad->I_x_kal) / 1000.0, output[1] - Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidy, actTime, (*I_safeY - Quad->I_y_kal) / 1000.0, -Quad->I_y_dot_kal / 1000.0);
 
-    y_ddot = pidy->currentValue < 1 ? pidy->currentValue : 1;
-    y_ddot = y_ddot > -1 ? y_ddot : -1;
+    updatePID_statespace(pidz, actTime, (*height - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
 
-    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
-    unsigned char thrust0 = 101;
+    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104 // with more sensors (weight) it's 109
+    unsigned char thrust0 = 109;
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
@@ -95,11 +93,21 @@ int calculateHover(double height, double I_safeX, double I_safeY, double maxAngl
     // ctrl->u_thrust = thrust0;
     // printf("u_thrust,%u,", ctrl->u_thrust);
 
-    double q6 = Quad->yaw;
+    // assign acceleration from trajectory planner
+    x_ddot = output[0] + pidx->currentValue;
+    y_ddot = pidy->currentValue;
 
     // calculate angles in order to move quadrocopter in KI_(xy)-plane
 
-    // TODO: how does this work (where does the equation come from)
+    // asin() is only defined for range [-1,1] therefore limiting is needed
+    x_ddot = x_ddot < 1 ? x_ddot : 1;
+    x_ddot = x_ddot > -1 ? x_ddot : -1;
+
+    y_ddot = y_ddot < 1 ? y_ddot : 1;
+    y_ddot = y_ddot > -1 ? y_ddot : -1;
+
+    // conversion from acceleration to angle, maple script available
+    double q6 = Quad->yaw;
     double roll_d = -asin((y_ddot * cos(q6) + x_ddot * sin(q6)) / g);
     double pitch_d = -asin((x_ddot * cos(q6) - y_ddot * sin(q6)) / cos(roll_d) / g);
 

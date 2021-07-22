@@ -24,16 +24,22 @@ int main() {
 
     struct QuadState Quad;
 
-    pthread_t p_ioThread, p_serialThread, p_pipeThread;
+    pthread_t p_ioThread,p_logThread, p_serialThread, p_pipeThread, p_cameraThread;
 
     pthread_create(&p_ioThread, NULL, ioThread, &Quad);
-    pthread_create(&p_serialThread, NULL, serialThread, &Quad);
+    // pthread_create(&p_serialThread, NULL, serialThread, &Quad);
     // pthread_create(&p_pipeThread, NULL, pipeThread, &Quad);
+    // pthread_create(&p_cameraThread, NULL, cameraThread, &Quad);
+    pthread_create(&p_logThread, NULL, logThread, &Quad);
 
     pthread_join(p_ioThread, NULL);
-    pthread_join(p_serialThread, NULL);
-    // pthread_join(p_pipeThread, NULL); 
-    
+    // pthread_join(p_serialThread, NULL);
+    // pthread_join(p_pipeThread, NULL);
+    // pthread_join(p_cameraThread, NULL);
+    pthread_join(p_logThread, NULL);
+
+
+
     return 0;
 }
 

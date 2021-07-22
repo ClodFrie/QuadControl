@@ -37,8 +37,7 @@ int sendCommand(int fd) {
     char sendCmd[] = {'>', '*', '>', 'c'};
     write(fd, sendCmd, sizeof(sendCmd));
     tcdrain(fd);
-    unsigned char crc0 = crc8(0, NULL, 0);
-    ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
+    ctrl.CRC = crc8(0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
 
     unsigned char* ptr = (unsigned char*)&ctrl;
     int bytesLeft = sizeof(ctrl);
@@ -59,7 +58,7 @@ int sendCommand(int fd) {
     int tmpRec = 0;
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (receivedBytes < sizeof(answer)) {
-        tmpRec = read(fd, answer + receivedBytes, sizeof(answer));  // read serial data
+        tmpRec = read(fd, answer + receivedBytes, sizeof(answer)-receivedBytes);  // read serial data
         receivedBytes += tmpRec;
         if (get_time_ms() > endTime) {
             return -1;
@@ -78,7 +77,6 @@ int sendCommand(int fd) {
 
 int requestData_ser(int fd) {
     char reqData[] = {'>', '*', '>', 'd'};
-    ;
 
     int receivedBytes = 0;
     int tmpRec = 0;
@@ -95,19 +93,20 @@ int requestData_ser(int fd) {
         receivedBytes += tmpRec;
     }
 
-    unsigned char crc0 = crc8(0, NULL, 0);
-    unsigned char crc = crc8(crc0, (unsigned char*)(&data), sizeof(data) - 1);
+    unsigned char crc = crc8(0, (unsigned char*)(&data), sizeof(data) - 1);
     if (data.CRC != crc) {
         fprintf(stderr, "[CRC ERROR] Receiving side\n");
         bzero(&data, sizeof(data));  // delete corrupted data
+        return 1;
     }
+    return 0;
 }
 int sendParameters(int fd) {
     char sendParam[] = {'>', '*', '>', 'p'};
     write(fd, sendParam, sizeof(sendParam));
     tcdrain(fd);
-    unsigned char crc0 = crc8(0, NULL, 0);
-    ctrl.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
+    
+    ctrl.CRC = crc8(0, (unsigned char*)(&params), sizeof(params) - 1);
     double endTime = get_time_ms() + MS_TIMEOUT;
 
     unsigned char* ptr = (unsigned char*)&params;

@@ -5,7 +5,7 @@
 #include "../include/quad.h"
 #include "../include/threads.h"
 
-void* pipeThread(void* vptr) {
+void* cameraThread(void* vptr) {
     // declare this as a "real-time" task
     struct sched_param param;
     param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 10;
@@ -17,7 +17,7 @@ void* pipeThread(void* vptr) {
     // cast pointer to QuadState type
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
-    FILE* fp = popen("/usr/bin/python3 \"Calculate_Points+RealTime.py\"", "r");
+    FILE* fp = NULL;  //popen("/usr/bin/python3 \"Calculate_Points+RealTime.py\"", "r");
     if (fp == NULL) {
         printf("popen error\n");
     }
@@ -27,10 +27,9 @@ void* pipeThread(void* vptr) {
     char inLine[1024];
     while (fgets(inLine, sizeof(inLine), fp) != NULL) {
         // printf("%s",inLine); //DEBUG
-        if (pthread_mutex_trylock(&state_mutex) == 0) {  // lock succesful
-            sscanf(inLine, "[ %lf %lf %lf],[ %lf %lf %lf]",
-                   &(Quadptr->Q_x), &(Quadptr->Q_y), &(Quadptr->Q_z), &(Quadptr->roll), &(Quadptr->pitch), &(Quadptr->yaw));  // read data
-            pthread_mutex_unlock(&state_mutex);                                                                               // unlock mutex
+        if (pthread_mutex_trylock(&state_mutex) == 0) {         // lock succesful
+            sscanf(inLine, "%d\n", &Quadptr->IMUC.C_distance);  // read data
+            pthread_mutex_unlock(&state_mutex);                 // unlock mutex
         }
     }
 

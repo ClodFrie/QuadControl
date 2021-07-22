@@ -17,19 +17,26 @@ struct QuadState {
     // Inertial Frame filtered
     double I_x_kal, I_y_kal, I_z_kal;
     double I_x_dot_kal, I_x_ddot_kal, I_x_dddot_kal, I_y_dot_kal, I_y_ddot_kal, I_y_dddot_kal, I_z_dot_kal, I_z_ddot_kal, I_z_dddot_kal;
-    
-    double I_roll_kal,I_pitch_kal,I_yaw_kal;
-    double I_roll_dot_kal,I_pitch_dot_kal,I_yaw_dot_kal,I_roll_ddot_kal,I_pitch_ddot_kal,I_yaw_ddot_kal,I_roll_dddot_kal,I_pitch_dddot_kal,I_yaw_dddot_kal;
+
+    double I_roll_kal, I_pitch_kal, I_yaw_kal;
+    double I_roll_dot_kal, I_pitch_dot_kal, I_yaw_dot_kal, I_roll_ddot_kal, I_pitch_ddot_kal, I_yaw_ddot_kal, I_roll_dddot_kal, I_pitch_dddot_kal, I_yaw_dddot_kal;
 
     // time for trajectory planning
+    double quadTime;
     double quadStartTime;
     double trajectoryStartTime;
 
+    struct TRAJECTORY {
+        double I_x, I_y, I_z;
+    } trajectory;
+
     // measurements from ultrasonic sensor and camera
-    struct IMUC{
-        double B_distance0,B_distance1,B_distance2,B_averageDistance,angle_yaw;
-    
-    }IMUC;
+    struct IMUC {
+        double B_distance0, B_distance1, B_distance2, B_averageDistance, angle_yaw;
+        int C_distance;  // in pixel
+
+    } IMUC;
+    char newDataAvailable;
 
     // Body Frame filtered
     // double Q_x_kal, Q_y_kal, Q_z_kal;

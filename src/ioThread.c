@@ -18,12 +18,7 @@
 #include "../include/threads.h"
 #include "../include/time_helper.h"
 
-unsigned int crc0;
-
 // function prototypes
-FILE* initLogFile(char* mType);
-int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double I_safeZ, struct QuadState* Quadptr, double Ft_i[]);
-
 double get_time_ms();
 void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_height, float kD_height);
 int updateState(struct QuadState* Quad);
@@ -36,6 +31,7 @@ enum STATES {
     HOVER,
     RECTANGULAR_TRAJECTORY,
     LEMNISCATE_TRAJECTORY,
+    IMUC_INIT,
     IMUC_HOVER,
     IMUC_ONLINE_TRAJECTORY,
     LANDING
@@ -57,12 +53,12 @@ void* ioThread(void* vptr) {
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
     // define starting state as INIT
-    state = IMUC_HOVER;
+    state = IMUC_INIT;
 
     int fdSerial;
 #define SERIAL
 #ifdef SERIAL
-    fdSerial = openPort('F' - '0');
+    fdSerial = openPort('A' - '0');  // TODO 'F'
 
     if (fdSerial == -1) {
         return NULL;
@@ -76,16 +72,11 @@ void* ioThread(void* vptr) {
         return NULL;
     }
 #endif
-    // initialize log file
-    FILE* fd = initLogFile("IDLE.X");
 
     // zero all variables
     bzero(&data, sizeof(data));
     bzero(&ctrl, sizeof(ctrl));
     bzero(&params, sizeof(params));
-
-    // initialize crc0
-    unsigned char crc0 = crc8(0, NULL, 0);  // TODO: move this somewhere more intelligent
 
     // initialize kalman filter
     initKalman();
@@ -94,20 +85,18 @@ void* ioThread(void* vptr) {
     // initialize MPC
     // initMPC();
 
-    // TODO: implement start trajectory logic
-    // int startX = 0;
-    // int startY = 0;
-
     double t1 = get_time_ms();
     // write control parameters
     setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
 
-    while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
-        ;  // make sure that parameters have been received
-    }
-    printf("[PARAM] received succesfully!\n");
-    ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
+    // TODO: comment back in
+    // while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
+    //     ;  // make sure that parameters have been received
+    // }
+    // printf("[PARAM] received succesfully!\n");
+
     // while (sendCommand(fdSerial) != 0) {
+    //     ctrl.CRC = crc8(0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
     //     ; // send command once to reset all previous motor commands
     // }
     // printf("[CMD] reset succesfully!\n");
@@ -116,30 +105,23 @@ void* ioThread(void* vptr) {
 
     // plotPath(t1);  // gnuplot
 
-    double I_safeX0, I_safeY0;
-    double I_safeX = 0;
-    double I_safeY = 0;
-    double I_safeZ = 500;
-    double Q_safeX = 0;
-    double Q_safeY = 0;
-    double Q_safeZ = -500;
-    double Ft_i[4];
-    double xo[12];
+    double I_safeX0 = 0, I_safeY0 = 0;
+    double Ft_i[4] = {};
+    double xo[12] = {};
 
     unsigned long int cnt = 0;
 
-    double t0 = get_time_ms();
     while (1) {  // do forever
 
         // receive drone data
-        if (cnt % 20 == 0 || data.battery_voltage == 0) {  // every n-th time
-            requestData_ser(fdSerial);                     // TODO: this has not to be done every cycle. Maybe it is enough to check every tenth cycle??
+        if (cnt % 20 == 0 || data.battery_voltage == 0) {  // every n-th time or when data was not received properly
+            requestData_ser(fdSerial);
             // requestData(&ftHandle);
         }
         cnt++;
         if (pthread_mutex_lock(&state_mutex) == 0) {
             updateState(Quadptr);
-
+            Quadptr->quadTime = get_time_ms();  // update time
             // release mutex
             pthread_mutex_unlock(&state_mutex);
 
@@ -155,12 +137,10 @@ void* ioThread(void* vptr) {
                         // additional criteria, wait for kalman filter to converge
                         double delta = 0.01;  // 0.01 mm deviation
                         if (fabs(Quadptr->I_x - Quadptr->I_x_kal) < delta && fabs(Quadptr->I_y - Quadptr->I_y_kal) < delta) {
-                            I_safeX = Quadptr->I_x;
-                            I_safeY = Quadptr->I_y;
-                            I_safeX0 = I_safeX;
-                            I_safeY0 = I_safeY;
-                            Q_safeX = Quadptr->Q_x;
-                            Q_safeY = Quadptr->Q_y;
+                            Quadptr->trajectory.I_x = Quadptr->I_x;
+                            Quadptr->trajectory.I_y = Quadptr->I_y;
+                            I_safeX0 = Quadptr->I_x;
+                            I_safeY0 = Quadptr->I_y;
 
                             initPID(&pidx, 2.0, 0.2, 0.9, 6.20, get_time_ms());  // pidX
                             initPID(&pidy, 2.3, 0.7, 1.1, 6.25, get_time_ms());  // pidY
@@ -185,15 +165,21 @@ void* ioThread(void* vptr) {
 
                     // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
-                    calculateHover(&I_safeZ, I_safeX0, &I_safeX, I_safeY0, &I_safeY, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz, get_time_ms());
+                    calculateHover(I_safeX0, I_safeY0, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz);
                     break;
                 case HOVER:
 
                     break;
                 case RECTANGULAR_TRAJECTORY:
                     break;
+                case IMUC_INIT:
+                    initPID(&pidx, 2.0, 0.2, 0.9, 6.20, get_time_ms());  // pidX
+                    initPID(&pidy, 2.3, 0.7, 1.1, 6.25, get_time_ms());  // pidY
+
+                    initPID(&pidz, 2.0, 2.2, 6.2, 10, get_time_ms());  // pidZ
+                    break;
                 case IMUC_HOVER:
-                    calculateIMUCHover(get_time_ms(), 0.3, Quadptr, 7, &pidz) ;
+                    calculateIMUCHover(get_time_ms(), 0.3, Quadptr, 7, &pidz);
                     break;
                 case IMUC_ONLINE_TRAJECTORY:
                     break;
@@ -203,15 +189,10 @@ void* ioThread(void* vptr) {
             }
 
             // write control commands - only if new data has been generated
-            ctrl.CRC = crc8(crc0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
             // sendCmd(&ftHandle);
             sendCommand(fdSerial);
-
-            // write logfile
-            writeLogLine(fd, get_time_ms() - t1, I_safeX, I_safeY, I_safeZ, Quadptr, Ft_i);
+            Quadptr->newDataAvailable = 1;      // set data_available flag for logging // TODO find correct place for this
         }
-
-        t1 = get_time_ms();
     }
 
     // free resources
@@ -221,7 +202,6 @@ void* ioThread(void* vptr) {
     // }
     if (fdSerial != -1) {
         close(fdSerial);
-        fclose(fd);
     }
     return NULL;
 }
@@ -238,45 +218,7 @@ void setParams(float kP_pos, float kD_pos, float kP_yaw, float kD_yaw, float kP_
 
     params.safeAngle = 15;  // degrees will be later multiplied on quadrotor
 
-    params.CRC = crc8(crc0, (unsigned char*)(&params), sizeof(params) - 1);
-}
-
-FILE* initLogFile(char* mType) {
-    // build file name from current time and mission type
-    char buffTime[100];
-    char buffFileName[1024];
-    get_date(buffTime);
-    sprintf(buffFileName, "../../Flight_Data/%s_%s.csv", mType, buffTime);
-    printf("%s\n", buffFileName);
-
-    // open file for writing and get file descriptor
-    FILE* fd = fopen(buffFileName, "w+");
-
-    // not able to open, return NULL
-    if (fd == NULL) {
-        return NULL;
-    }
-
-    // write first line (header)
-    fprintf(fd, "T,dT,BAT,CPU,YAW_QUAD,U_THRUST,I_safeX,I_safeY,I_safeZ,I_X,I_Y,I_Z,B_z,B_dist,B_angle,ROLL,PITCH,YAW,ROLL_dot,PITCH_dot,YAW_dot,Ft1,Ft2,Ft3,Ft4\n");
-
-    // return file descriptor for use in other functions
-    return fd;
-}
-// write current data for every time step
-int writeLogLine(FILE* fd, double deltaT, double I_safeX, double I_safeY, double I_safeZ, struct QuadState* Quadptr, double Ft_i[]) {
-    fprintf(fd, "%lf,%lf,%d,%d,%d,%u,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", get_time_ms(), deltaT, data.battery_voltage, data.HL_cpu_load, data.angle_yaw,
-            ctrl.u_thrust, I_safeX, I_safeY, I_safeZ, Quadptr->I_x, Quadptr->I_y, Quadptr->I_z,Quadptr->IMUC.B_distance0,Quadptr->IMUC.B_averageDistance,Quadptr->IMUC.angle_yaw, Quadptr->I_roll_kal, Quadptr->I_pitch_kal, Quadptr->I_yaw_kal, Quadptr->I_roll_dot_kal, Quadptr->I_pitch_dot_kal, Quadptr->I_yaw_dot_kal, Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
-
-    fflush(fd);  // flush file buffer, so that every line is written and not lost when aborting execution [CTRL]+[C]}
-
-    // print debug messages
-    printf("[T],%3.2lf,", deltaT);
-    printf("BAT,%5d,CPU,%3d,yaw,%3d,", data.battery_voltage, data.HL_cpu_load, data.angle_yaw);
-
-    printf("I_x,%6.2f,I_y,%6.2f,I_z,%6.2f,B_z,%6.2lf,B_dist,%6.2lf,B_angle,%2.2lf,roll,%2.1lf,pitch,%2.1lf,yaw,%2.1lf,roll_cmd:%3d,pitch_cmd:%3d,yaw_cmd:%d\n", Quadptr->I_x, Quadptr->I_y, Quadptr->I_z,Quadptr->IMUC.B_distance0,Quadptr->IMUC.B_averageDistance,Quadptr->IMUC.angle_yaw, Quadptr->I_roll_kal * 180.0 / M_PI, Quadptr->I_pitch_kal * 180.0 / M_PI, Quadptr->I_yaw_kal * 180.0 / M_PI, ctrl.roll_d / 1000, ctrl.pitch_d / 1000, ctrl.yaw_d);
-    // printf("roll%lf,pitch%lf,yaw%d",data.angle_roll/1000.0,data.angle_pitch/1000.0,data.angle_yaw);
-    // printf("u:%d,%d,%d,%d\n",data.u[0],data.u[1],data.u[2],data.u[3]);
+    params.CRC = crc8(0, (unsigned char*)(&params), sizeof(params) - 1);
 }
 
 int updateState(struct QuadState* Quad) {

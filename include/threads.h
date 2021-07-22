@@ -6,6 +6,8 @@
 void* ioThread(void*);
 void* serialThread(void*);
 void* pipeThread(void*);
+void* cameraThread(void*);
+void* logThread(void*);
 
 extern pthread_mutex_t state_mutex;
 #endif

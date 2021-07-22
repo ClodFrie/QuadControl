@@ -47,8 +47,7 @@ int requestData(FT_HANDLE* ftHandle) {
         bzero(&data, sizeof(data));   // delete corrupted data
         return 1;
     }
-    unsigned char crc0 = crc8(0, NULL, 0);
-    unsigned char crc = crc8(crc0, (unsigned char*)(&data), sizeof(data) - 1);
+    unsigned char crc = crc8(0, (unsigned char*)(&data), sizeof(data) - 1);
     if (data.CRC != crc) {
         fprintf(stderr, "[CRC ERROR] Receiving side\n");
         bzero(&data, sizeof(data));  // delete corrupted data
@@ -123,6 +122,9 @@ int sendCmd(FT_HANDLE* ftHandle) {
     if (ftStatus != FT_OK) {
         fprintf(stderr, "Failure.  FT_Write returned %d\n", (int)ftStatus);
     }
+    ctrl.CRC = crc8(0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
+
+
     ftStatus = FT_Write(*ftHandle, &ctrl, sizeof(ctrl), &bytesWritten);
     if (ftStatus != FT_OK) {
         fprintf(stderr, "Failure.  FT_Write returned %d\n", (int)ftStatus);

@@ -30,6 +30,10 @@ struct QuadState {
         double I_x, I_y, I_z;
     } trajectory;
 
+    struct FORCES{
+        double F_i[4];
+    }forces;
+
     // measurements from ultrasonic sensor and camera
     struct IMUC {
         double B_distance0, B_distance1, B_distance2, B_averageDistance, angle_yaw;

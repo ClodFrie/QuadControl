@@ -131,8 +131,9 @@ def on_packet(packet):
 
     # only handle packets in a set interval
     global t_act
+    # tint = time.time() # calculate possible fps. average time ~1-2ms
     t = time.time()
-    if t > t_act + 0.03:  #  = 30ms
+    if t > t_act + 0.015:  #  = 15ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
@@ -212,7 +213,11 @@ def on_packet(packet):
 
 
         Q_t_QP = -Q_t_PQ # redirect vector        
-        print("{},{}".format(Q_t_QP, euler))
+        print("{},{}".format(Q_t_QP, euler)) 
+        # print("[T]{}".format(time.time()-tint)) # TIMING: it takes 1-2ms to calculate
+        interval = time.time()
+
+
         
         # Qx0 = Q_t_QP[0]
         # Qy0 = Q_t_QP[1]
@@ -241,7 +246,7 @@ def on_packet(packet):
 async def setup():
     """ Main function """
     #connection = await qtm.connect("192.168.137.1")
-    connection = await qtm.connect("192.168.0.101")
+    connection = await qtm.connect("192.168.0.102")
     if connection is None:
         return
 

@@ -1,0 +1,58 @@
+Date : 2021-07-26 14:22:31
+Directory : /home/richard/remote_raspi/Desktop/QuadControl
+Total : 28 files,  1291 codes, 313 comments, 384 blanks, all 1988 lines
+
+Languages
++--------------+------------+------------+------------+------------+------------+
+| language     | files      | code       | comment    | blank      | total      |
++--------------+------------+------------+------------+------------+------------+
+| C            |         13 |      1,033 |        190 |        254 |      1,477 |
+| Python       |          2 |        137 |        107 |         74 |        318 |
+| C++          |         11 |        118 |         15 |         56 |        189 |
+| Shell Script |          1 |          2 |          1 |          0 |          3 |
+| Markdown     |          1 |          1 |          0 |          0 |          1 |
++--------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                        | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                           |         28 |      1,291 |        313 |        384 |      1,988 |
+| include                                                                     |         11 |        118 |         15 |         56 |        189 |
+| src                                                                         |         13 |      1,033 |        190 |        254 |      1,477 |
++-----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| filename                                                                    | language     | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| /home/richard/remote_raspi/Desktop/QuadControl/Calculate_Points+RealTime.py | Python       |        107 |         96 |         57 |        260 |
+| /home/richard/remote_raspi/Desktop/QuadControl/README.md                    | Markdown     |          1 |          0 |          0 |          1 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/FTDI_helpers.h       | C++          |          8 |          0 |          4 |         12 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/MPC.h                | C++          |         11 |          2 |          6 |         19 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/crc.h                | C++          |          5 |          0 |          3 |          8 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/kalman.h             | C++          |         11 |          2 |          6 |         19 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/missionPlanning.h    | C++          |         11 |          0 |          7 |         18 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/pid.h                | C++          |         15 |          0 |          5 |         20 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/planTrajectory.h     | C++          |          4 |          0 |          2 |          6 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/quad.h               | C++          |         30 |         11 |         14 |         55 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/serial_helpers.h     | C++          |          8 |          0 |          4 |         12 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/threads.h            | C++          |         10 |          0 |          3 |         13 |
+| /home/richard/remote_raspi/Desktop/QuadControl/include/time_helper.h        | C++          |          5 |          0 |          2 |          7 |
+| /home/richard/remote_raspi/Desktop/QuadControl/rigidtrans.py                | Python       |         30 |         11 |         17 |         58 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/FTDI_helpers.c           | C            |        209 |         10 |         27 |        246 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/cameraThread.c           | C            |         30 |          4 |          8 |         42 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/crc.c                    | C            |         59 |         22 |          8 |         89 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/ioThread.c               | C            |        205 |         40 |         57 |        302 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/logThread.c              | C            |         47 |         11 |         15 |         73 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/main.c                   | C            |         27 |         10 |         11 |         48 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/missionPlanning.c        | C            |        144 |         38 |         54 |        236 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/pid.c                    | C            |         40 |         13 |         15 |         68 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/pipeThread.c             | C            |         31 |          3 |          7 |         41 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/planTrajectory.c         | C            |         36 |         17 |         16 |         69 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/serialThread.c           | C            |         42 |         10 |         10 |         62 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/serial_helpers.c         | C            |        147 |         12 |         23 |        182 |
+| /home/richard/remote_raspi/Desktop/QuadControl/src/time_helper.c            | C            |         16 |          0 |          3 |         19 |
+| /home/richard/remote_raspi/Desktop/QuadControl/unload_drivers.sh            | Shell Script |          2 |          1 |          0 |          3 |
+| Total                                                                       |              |      1,291 |        313 |        384 |      1,988 |
++-----------------------------------------------------------------------------+--------------+------------+------------+------------+------------+

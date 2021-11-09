@@ -17,19 +17,24 @@ void* cameraThread(void* vptr) {
     // cast pointer to QuadState type
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
-    FILE* fp = NULL;  //popen("/usr/bin/python3 \"Calculate_Points+RealTime.py\"", "r");
+    FILE* fp = popen("/usr/bin/python3 \"../Video/VideoProcessing_headless.py\"", "r");
     if (fp == NULL) {
         printf("popen error\n");
     }
-    usleep(100000);
+    // TODO: convert camera coordinates to Wall coordinates
+    usleep(10000);
 
-    printf("ready to read\n");
+    printf("[Camera] ready to read\n");
     char inLine[1024];
     while (fgets(inLine, sizeof(inLine), fp) != NULL) {
-        // printf("%s",inLine); //DEBUG
-        if (pthread_mutex_trylock(&state_mutex) == 0) {         // lock succesful
-            sscanf(inLine, "%d\n", &Quadptr->IMUC.C_distance);  // read data
-            pthread_mutex_unlock(&state_mutex);                 // unlock mutex
+        // printf("%s", inLine);                            //DEBUG
+            double fps;
+            int C_distance;
+            sscanf(inLine, "[%lffps,%dpx]\n", &fps, &C_distance);  // read data
+            // printf("\nC_distance:%d\n", /*Quadptr->IMUC.*/C_distance);
+        if (pthread_mutex_trylock(&state_mutex) == 0) {  // lock succesful
+            Quadptr->IMUC.C_distance = C_distance;
+            pthread_mutex_unlock(&state_mutex);  // unlock mutex
         }
     }
 

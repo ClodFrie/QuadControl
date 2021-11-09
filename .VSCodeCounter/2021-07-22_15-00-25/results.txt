@@ -1,0 +1,58 @@
+Date : 2021-07-22 15:00:25
+Directory : /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl
+Total : 28 files,  1252 codes, 375 comments, 376 blanks, all 2003 lines
+
+Languages
++--------------+------------+------------+------------+------------+------------+
+| language     | files      | code       | comment    | blank      | total      |
++--------------+------------+------------+------------+------------+------------+
+| C            |         13 |      1,002 |        254 |        250 |      1,506 |
+| Python       |          2 |        136 |        105 |         72 |        313 |
+| C++          |         11 |        111 |         15 |         54 |        180 |
+| Shell Script |          1 |          2 |          1 |          0 |          3 |
+| Markdown     |          1 |          1 |          0 |          0 |          1 |
++--------------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                         | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                            |         28 |      1,252 |        375 |        376 |      2,003 |
+| include                                                                                                                      |         11 |        111 |         15 |         54 |        180 |
+| src                                                                                                                          |         13 |      1,002 |        254 |        250 |      1,506 |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| filename                                                                                                                     | language     | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/Calculate_Points+RealTime.py | Python       |        106 |         94 |         55 |        255 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/README.md                    | Markdown     |          1 |          0 |          0 |          1 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/FTDI_helpers.h       | C++          |          8 |          0 |          4 |         12 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/MPC.h                | C++          |         11 |          2 |          6 |         19 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/crc.h                | C++          |          5 |          0 |          3 |          8 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/kalman.h             | C++          |         11 |          2 |          6 |         19 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/missionPlanning.h    | C++          |         11 |          0 |          7 |         18 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/pid.h                | C++          |         15 |          0 |          5 |         20 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/planTrajectory.h     | C++          |          4 |          0 |          2 |          6 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/quad.h               | C++          |         23 |         11 |         12 |         46 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/serial_helpers.h     | C++          |          8 |          0 |          4 |         12 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/threads.h            | C++          |         10 |          0 |          3 |         13 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/time_helper.h        | C++          |          5 |          0 |          2 |          7 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/rigidtrans.py                | Python       |         30 |         11 |         17 |         58 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/FTDI_helpers.c           | C            |        203 |         15 |         25 |        243 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/cameraThread.c           | C            |         30 |          3 |          7 |         40 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/crc.c                    | C            |         59 |         22 |          8 |         89 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/ioThread.c               | C            |        213 |         56 |         63 |        332 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/logThread.c              | C            |         43 |         14 |         15 |         72 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/main.c                   | C            |         23 |         14 |         13 |         50 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/missionPlanning.c        | C            |        126 |         76 |         47 |        249 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/pid.c                    | C            |         40 |         13 |         15 |         68 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/pipeThread.c             | C            |         31 |          3 |          7 |         41 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/planTrajectory.c         | C            |         36 |         17 |         16 |         69 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/serialThread.c           | C            |         42 |         10 |          9 |         61 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/serial_helpers.c         | C            |        140 |         11 |         22 |        173 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/time_helper.c            | C            |         16 |          0 |          3 |         19 |
+| /home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/unload_drivers.sh            | Shell Script |          2 |          1 |          0 |          3 |
+| Total                                                                                                                        |              |      1,252 |        375 |        376 |      2,003 |
++------------------------------------------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+

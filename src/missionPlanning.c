@@ -9,36 +9,24 @@
 #include "../include/quad.h"
 #include "../include/time_helper.h"
 
-/*
+int lemniscatePathX(double output[], double t, double t0);
+int lemniscatePathY(double output[], double t, double t0);
+
 // MPC based controller
-int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, double I_safeX, double I_safeY, struct QuadState* Quad, struct CONTROL* ctrl, double actTime, double Ft_i[4]) {
+int pathMPC(double I_safeX0, double I_safeY0, struct QuadState* Quad, struct CONTROL* ctrl, double actTime) {
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104
     ctrl->u_thrust = 104 * 0;
 
     // prepare MPC state variables
-
-    // double x0[12] = {(Q_safeX - Quad->Q_x_kal) / 1000.0, (Q_safeY - Quad->Q_y_kal) / 1000.0, (Q_safeZ - Quad->Q_z_kal) / 1000.0, (-Quad->Q_roll_kal), (-Quad->Q_pitch_kal), (-Quad->Q_yaw_kal),
-    //           (-Quad->Q_x_dot_kal) / 1000.0, (-Quad->Q_y_dot_kal) / 1000.0, (-Quad->Q_z_dot_kal) / 1000.0, (-Quad->Q_roll_dot_kal), (-Quad->Q_pitch_dot_kal), (-Quad->Q_yaw_dot_kal)};
-    // double x0[12] = {(I_safeX-Quad->I_x)/5000.0,(I_safeY-Quad->I_y)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
-    //                 0,0,0,(Quad->Q_roll_dot_kal)/20.0, (Quad->Q_pitch_dot_kal)/20.0, -(Quad->Q_yaw_dot_kal)/20.0};
-    // double x0[12] = {0*(Q_safeX-Quad->Q_x_kal)/5000.0,0*(Q_safeY-Quad->Q_y_kal)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
-    //                 0,0,0,(Quad->Q_roll_dot_kal)/20.0, (Quad->Q_pitch_dot_kal)/20.0, -(Quad->Q_yaw_dot_kal)/20.0};
-    // double x0[12] = {0*(Q_safeX-Quad->Q_x_kal)/5000.0,0*(Q_safeY-Quad->Q_y_kal)/5000.0,0, (-Quad->Q_roll_kal),(-Quad->Q_pitch_kal),Quad->Q_yaw_kal/10.0,
-    // 0,0,0,0,0,0};
-
-    // double x0[12] = {(I_safeX - Quad->I_x_kal) / 1000.0, (I_safeY - Quad->I_y_kal) / 1000.0, (I_safeZ - Quad->I_z_kal) / 1000.0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-Quad->I_yaw_kal),
-    //           (-Quad->I_x_dot_kal) / 1000.0, (-Quad->I_y_dot_kal) / 1000.0, (-Quad->I_z_dot_kal) / 1000.0, (-Quad->I_roll_dot_kal), (-Quad->I_pitch_dot_kal), (-Quad->I_yaw_dot_kal)};
-
     // double x0[12] = {0, 0, 0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-Quad->I_yaw_kal),
-    //                  0, 0, 0, (-Quad->I_roll_dot_kal), (-Quad->I_pitch_dot_kal), (-Quad->I_yaw_dot_kal)};
+    //                  0, 0, 0, (-Quad->I_roll_dot_kal) / 1.0, (-Quad->I_pitch_dot_kal) / 1.0, (-Quad->I_yaw_dot_kal) / 1.0};
 
-    double x0[12] = {0, 0, 0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), (-0 * Quad->I_yaw_kal),
-                     0, 0, 0, (-Quad->I_roll_dot_kal) / 400.0, (-Quad->I_pitch_dot_kal) / 400.0, (-0 * Quad->I_yaw_dot_kal) / 400.0};
-
+    double x0[12] = {0, 0, 0, (-Quad->I_roll_kal), (-Quad->I_pitch_kal), 0 * (-Quad->I_yaw_kal),
+                     0, 0, 0, (-Quad->I_roll_dot_kal) / 7.0, (-Quad->I_pitch_dot_kal) / 7.0, 0 * (-Quad->I_yaw_dot_kal) / 20.0};
     // solve unconstrained optimal control problem
-    solveOCP(Ft_i, x0);
+    solveOCP(Quad->forces.F_i, x0);
 
-    // printf("\n%lf,%lf,%lf,%lf\n", Ft_i[0], Ft_i[1], Ft_i[2], Ft_i[3]);
+    // printf("%lf,%lf,%lf,%lf\n", Quad->forces.F_i[0], Quad->forces.F_i[1], Quad->forces.F_i[2], Quad->forces.F_i[3]);
 
     // convert force to u
     double C_T = 8.5041e-4;
@@ -47,17 +35,17 @@ int pathMPC(double Q_safeZ, double Q_safeX, double Q_safeY, double I_safeZ, doub
     // assign ctrl to be sent to the quadrocopter
     double F_equi = (1.3068 - 0.45) * 9.81 / 4.0;  // (m_body + 4 * m_rotor)*g / 4
     for (int i = 0; i < 4; i++) {
-        Ft_i[i] *= 0.80;
-        if (Ft_i[i] >= 0) {
-            ctrl->u_i[i] = (int)pow((Ft_i[i]) / C_T, 1 / power);
+        Quad->forces.F_i[i] *= 0.80;
+        if (Quad->forces.F_i[i] >= 0) {
+            ctrl->u_i[i] = (int)pow((Quad->forces.F_i[i]) / C_T, 1 / power);
         } else {
-            ctrl->u_i[i] = (int)-pow((-Ft_i[i]) / C_T, 1 / power);
+            ctrl->u_i[i] = (int)-pow((-Quad->forces.F_i[i]) / C_T, 1 / power);
         }
     }
 }
-*/
+
 // IMUC Flight
-int calculateIMUCHover(double actTime, double targetHeight, struct QuadState* Quad, double maxAngle_deg, PID* pidz) {
+int calculateIMUCHover(double actTime, double targetHeight, struct QuadState* Quad, double maxAngle_deg, PID* pidx, PID* pidy, PID* pidz) {
     double g = 9.81;                                // m/s^2
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
 
@@ -65,12 +53,24 @@ int calculateIMUCHover(double actTime, double targetHeight, struct QuadState* Qu
     double i_;
 
     // update controllers
-    // updatePID(pidx,actTime,)
-    // updatePID(pidy,actTime,)
+    updatePID(pidx, actTime, 0 - Quad->IMUC.C_distance / 50.0);
+    updatePID(pidy, actTime, (0.54 - Quad->IMUC.B_averageDistance) * 5);
     updatePID(pidz, actTime, targetHeight - Quad->IMUC.B_distance0);
 
+    ctrl.roll_d = (0.5 * pidx->currentValue - 0.5 * pidy->currentValue);
+    ctrl.pitch_d = (-0.5 * pidx->currentValue - 0.5 * pidy->currentValue);
+
+    // limiting pitch and yaw to about 7°
+    ctrl.roll_d = ctrl.roll_d > maxAngle_deg ? maxAngle_deg : ctrl.roll_d;
+    ctrl.roll_d = ctrl.roll_d < -maxAngle_deg ? -maxAngle_deg : ctrl.roll_d;
+
+    ctrl.pitch_d = ctrl.pitch_d > maxAngle_deg ? maxAngle_deg : ctrl.pitch_d;
+    ctrl.pitch_d = ctrl.pitch_d < -maxAngle_deg ? -maxAngle_deg : ctrl.pitch_d;
+
+    double scaling = 1000.0 / 1.0;
+
     // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104 // with more sensors (weight) it's 109
-    unsigned char thrust0 = 109;  // TODO: gravity scaling 1/cos(phi)/cos(theta), TODO: battery power compensation
+    unsigned char thrust0 = 104;  // TODO: gravity scaling 1/cos(phi)/cos(theta), TODO: battery power compensation
 
     // assign pid to u_thrust only if positive
     double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
@@ -78,15 +78,18 @@ int calculateIMUCHover(double actTime, double targetHeight, struct QuadState* Qu
 
     // calculate yaw command
     int maxDelta = 5;  // 5 degrees max
-    Quad->IMUC.angle_yaw *= -1;
-    int tmp_angle = data.angle_yaw - (short)Quad->IMUC.angle_yaw;
+
+    int tmp_angle = data.angle_yaw - (int)Quad->IMUC.angle_yaw;
 
     if (Quad->IMUC.angle_yaw > maxDelta) {
-        tmp_angle = data.angle_yaw + maxDelta;
-    } else if (Quad->IMUC.angle_yaw < -maxDelta) {
         tmp_angle = data.angle_yaw - maxDelta;
+    } else if (Quad->IMUC.angle_yaw <= -maxDelta) {
+        tmp_angle = data.angle_yaw + maxDelta;
     }
-    ctrl.yaw_d = 0.9 * ctrl.yaw_d + 0.1 * tmp_angle;
+    ctrl.yaw_d = 0.05 * ctrl.yaw_d + 0.95 * tmp_angle;
+    // ctrl.yaw_d = tmp_angle;
+    ctrl.roll_d *= scaling;
+    ctrl.pitch_d *= scaling;
 
     return 0;
 }
@@ -100,22 +103,26 @@ int calculateHover(double I_safeX0, double I_safeY0, double maxAngle_deg, struct
     double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
     double actTime = get_time_ms();
 
-
     // path planning
     double outputX[4] = {};
     double outputY[4] = {};
+    double outputZ[4] = {};
     double t, t0, a_max, v_max, s_d;
     t = (actTime - Quad->quadStartTime) / 1000.0;
-    t0 = 8;        // s
+    t0 = 12;       // s
     a_max = 0.25;  // m/s^2
-    v_max = 0.1;   // m/s
+    v_max = 0.15;   // m/s
 
     continousPath(outputX, 0, 0, a_max, v_max, s_d);
-    double trajTime = 8 + 4;  //outputX[3] + 4;
+    double trajTime = 6 + 4;  //outputX[3] + 4;
 
     // Square Trajectory
     s_d = 0.5;  // m // Square dimension
-    if (t < t0 + 2 * trajTime) {
+
+    if (t < t0) {  // takeoff trajectory
+        continousPath(outputZ, t, 0, a_max, v_max, 0.255);
+        Quad->trajectory.I_z = 245 + (int)(outputZ[2] * 1000);
+    } else if (t < t0 + 2 * trajTime) {  // perform rectangular trajectory
         continousPath(outputX, t, t0, a_max, v_max, s_d);
         continousPath(outputY, t, t0 + trajTime, a_max, v_max, s_d);
         Quad->trajectory.I_x = I_safeX0 + (int)(outputX[2] * 1000);
@@ -128,20 +135,31 @@ int calculateHover(double I_safeX0, double I_safeY0, double maxAngle_deg, struct
         Quad->trajectory.I_x = I_safeX0 + (int)(outputX[2] * 1000) + s_d;
         Quad->trajectory.I_y = I_safeY0 + (int)(outputY[2] * 1000) + s_d;
     }
-    // printf("time %lf\n", output[3]);
 
     // PID Controller for position and speed correction of quadrotor
     updatePID_statespace(pidx, actTime, (Quad->trajectory.I_x - Quad->I_x_kal) / 1000.0, outputX[1] - Quad->I_x_dot_kal / 1000.0);
     updatePID_statespace(pidy, actTime, (Quad->trajectory.I_y - Quad->I_y_kal) / 1000.0, outputY[1] - Quad->I_y_dot_kal / 1000.0);
 
-    updatePID_statespace(pidz, actTime, (Quad->trajectory.I_z - Quad->I_z_kal) / 1000.0, -Quad->I_z_dot_kal / 1000.0);
+    updatePID_statespace(pidz, actTime, (Quad->trajectory.I_z - Quad->I_z_kal) / 1000.0, outputZ[1] - Quad->I_z_dot_kal / 1000.0);
 
-    // feed forward to overcome gravity --> acquired from measurement data thrust0 = 104 // with more sensors (weight) it's 109
-    unsigned char thrust0 = 109;
+    // calculate motor control from required force calculated by PID_z // Leitner2017
+    double F_0 = 3.01;        // 2.5N, for a common thrust of 96
+                             // feed forward to overcome gravity --> acquired from measurement u = 104 :-: 109
+    double F =  pidz->currentValue;
+    double d_F = 0.202 * 0;  // 0.202 N from identification
+    double k_F = 8.5041e-4;
+    double p = 7.0 / 4.0;
+    double u_mot;
+    if (F + F_0 - d_F > 0.01) {
+        u_mot = pow((F + F_0  - d_F) / k_F, 1.0 / p);
+    } else {
+        u_mot = 0;
+    }
 
     // assign pid to u_thrust only if positive
-    double thrust = (pidz->currentValue + thrust0) >= 0 ? pidz->currentValue + thrust0 : 1;
+    double thrust = (u_mot ) > 0 ? u_mot: 0;
     ctrl->u_thrust = thrust < 200 ? thrust : 200;
+
     // ctrl->u_thrust = thrust0;
     // printf("u_thrust,%u,", ctrl->u_thrust);
 
@@ -181,7 +199,7 @@ int calculateHover(double I_safeX0, double I_safeY0, double maxAngle_deg, struct
 
     // calculate yaw command
     int maxDelta = 5;  // 5 degrees max
-    ctrl->yaw_d = (210 - 45);
+    ctrl->yaw_d = (210);
 
     if (fabs(ctrl->roll_d) > 32760 || fabs(ctrl->pitch_d) > 32760) {
         ctrl->roll_d = 0;
@@ -198,6 +216,134 @@ int calculateHover(double I_safeX0, double I_safeY0, double maxAngle_deg, struct
     }
 
     return 0;
+}
+// takeoff and perform lemniscate trajectory
+int lemniscateHover(double I_safeX0, double I_safeY0, double maxAngle_deg, struct QuadState* Quad, struct CONTROL* ctrl, PID* pidx, PID* pidy, PID* pidz) {
+    double g = 9.81;  // m/s^2
+    double m = 1.2;   // "kg"
+    double x_ddot, y_ddot;
+
+    double maxAngle = maxAngle_deg * M_PI / 180.0;  // in degree to rad
+    double actTime = get_time_ms();
+
+    // path planning
+    double outputX[4] = {};
+    double outputY[4] = {};
+    double outputZ[4] = {};
+    double t, t0, a_max, v_max, s_d;
+    t = (actTime - Quad->quadStartTime) / 1000.0;
+    t0 = 10;       // s
+    a_max = 0.25;  // m/s^2
+    v_max = 0.15;   // m/s
+
+    if (t < t0) {  // takeoff trajectory
+        continousPath(outputZ, t, 0, a_max, v_max, 0.255);
+        Quad->trajectory.I_z = 245 + (int)(outputZ[2] * 1000);
+    } else if (t <= t0 + M_PI * 3 * 4) {  // perform lemniscate trajectory
+        lemniscatePathX(outputX, t, t0);
+        lemniscatePathY(outputY, t, t0);
+        Quad->trajectory.I_x = I_safeX0 + (int)(outputX[2] * 1000);
+        Quad->trajectory.I_y = I_safeY0 + (int)(outputY[2] * 1000);
+    } else {
+        Quad->trajectory.I_x = I_safeX0;
+        Quad->trajectory.I_y = I_safeY0;
+    }
+
+    // PID Controller for position and speed correction of quadrotor
+    updatePID_statespace(pidx, actTime, (Quad->trajectory.I_x - Quad->I_x_kal) / 1000.0, outputX[1] - Quad->I_x_dot_kal / 1000.0);
+    updatePID_statespace(pidy, actTime, (Quad->trajectory.I_y - Quad->I_y_kal) / 1000.0, outputY[1] - Quad->I_y_dot_kal / 1000.0);
+
+    updatePID_statespace(pidz, actTime, (Quad->trajectory.I_z - Quad->I_z_kal) / 1000.0, outputZ[1] - Quad->I_z_dot_kal / 1000.0);
+
+   // calculate motor control from required force calculated by PID_z // Leitner2017
+    double F_0 = 3.01;        // 2.5N, for a common thrust of 96
+                             // feed forward to overcome gravity --> acquired from measurement u = 104 :-: 109
+    double F =  pidz->currentValue;
+    double d_F = 0.202 * 0;  // 0.202 N from identification
+    double k_F = 8.5041e-4;
+    double p = 7.0 / 4.0;
+    double u_mot;
+    if (F + F_0 - d_F > 0.01) {
+        u_mot = pow((F + F_0  - d_F) / k_F, 1.0 / p);
+    } else {
+        u_mot = 0;
+    }
+
+    // assign pid to u_thrust only if positive
+    double thrust = (u_mot ) > 0 ? u_mot: 0;
+    ctrl->u_thrust = thrust < 200 ? thrust : 200;
+
+    // assign acceleration from trajectory planner
+    x_ddot = outputX[0] + pidx->currentValue;
+    y_ddot = outputY[0] + pidy->currentValue;
+
+    // calculate angles in order to move quadrocopter in KI_(xy)-plane
+
+    // asin() is only defined for range [-1,1] therefore limiting is needed
+    x_ddot = x_ddot < 1 ? x_ddot : 1;
+    x_ddot = x_ddot > -1 ? x_ddot : -1;
+
+    y_ddot = y_ddot < 1 ? y_ddot : 1;
+    y_ddot = y_ddot > -1 ? y_ddot : -1;
+
+    // conversion from acceleration to angle, maple script available
+    double q6 = Quad->yaw;
+    double roll_d = -asin((y_ddot * cos(q6) + x_ddot * sin(q6)) / g);
+    double pitch_d = -asin((x_ddot * cos(q6) - y_ddot * sin(q6)) / cos(roll_d) / g);
+
+    roll_d = roll_d > maxAngle ? maxAngle : roll_d;       // limit angles
+    roll_d = roll_d < -maxAngle ? -maxAngle : roll_d;     // limit angles
+    pitch_d = pitch_d > maxAngle ? maxAngle : pitch_d;    // limit angles
+    pitch_d = pitch_d < -maxAngle ? -maxAngle : pitch_d;  // limit angles
+
+    // 1 deg == 1000 cts
+    double scaling = 1000.0 / 1.0;
+
+    // lowpass filter angle commands
+    // roll_d = roll_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
+    // pitch_d = pitch_d * 0.85 + 0.15 * (ctrl->roll_d/(scaling * 180.0 / M_PI)) ;
+
+    // assign angle commands
+    ctrl->roll_d = (short)((roll_d * (scaling * 180.0 / M_PI)));
+    ctrl->pitch_d = (short)((pitch_d * (scaling * 180.0 / M_PI)));
+
+    // calculate yaw command
+    int maxDelta = 5;  // 5 degrees max
+    double yaw_desired = 210; // degrees
+
+    if (fabs(ctrl->roll_d) > 32760 || fabs(ctrl->pitch_d) > 32760) {
+        ctrl->roll_d = 0;
+        ctrl->pitch_d = 0;
+    }
+
+    // assign yaw command
+    int yaw_delta = yaw_desired - data.angle_yaw;
+
+    if (yaw_delta > maxDelta) {
+        ctrl->yaw_d = data.angle_yaw + maxDelta;
+    } else if (yaw_delta < -maxDelta) {
+        ctrl->yaw_d = data.angle_yaw - maxDelta;
+    }else{
+        ctrl->yaw_d = yaw_desired;
+    }
+
+    return 0;
+}
+int lemniscatePathX(double output[], double t, double t0) {
+    if (t > t0) {
+        output[0] = -1.0 / 9.0 * 1.0 / 2.0 * sin((t - t0) / 3); /*acceleration*/
+        output[1] = 1.0 / 3.0 * 1.0 / 2.0 * cos((t - t0) / 3);  /*speed*/
+        output[2] = 1.0 / 2.0 * sin((t - t0) / 3);              /*position*/
+    }
+    output[3] = t0 + M_PI * 3 * 4; /* time */
+}
+int lemniscatePathY(double output[], double t, double t0) {
+    if (t > t0) {
+        output[0] = -1.0 / 36.0 * 1.0 / 2.0 * sin((t - t0) / 6); /*acceleration*/
+        output[1] = 1.0 / 6.0 * 1.0 / 2.0 * cos((t - t0) / 6);  /*speed*/
+        output[2] = 1.0 / 2.0 * sin((t - t0 ) / 6);               /*position*/
+    }
+    output[3] = t0 + M_PI * 3 * 4; /* time */
 }
 
 int continousPath(double output[], double t, double t0, double a_max, double v_max, double s_d) {

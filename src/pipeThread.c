@@ -23,7 +23,7 @@ void* pipeThread(void* vptr) {
     }
     usleep(100000);
 
-    printf("ready to read\n");
+    printf("[Qualisys] ready to read\n");
     char inLine[1024];
     while (fgets(inLine, sizeof(inLine), fp) != NULL) {
         // printf("%s",inLine); //DEBUG

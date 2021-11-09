@@ -46,10 +46,10 @@ def calculateFramePosition():
     z = data['z']
 
     # position body fixed frame in the middle of the 4 rotor points
-    # rotor points are (2), (3), (7) and (9)
-    x0 = np.mean([x[1], x[2], x[6], x[8]])
-    y0 = np.mean([y[1], y[2], y[6], y[8]])
-    z0 = np.mean([z[1], z[2], z[6], z[8]]) -70 # minus 70 because tracking points are on the propeller guard
+    # rotor points are (1) - (3) - (5) - (7)
+    x0 = np.mean(x[[0,2,4,6]])
+    y0 = np.mean(y[[0,2,4,6]])
+    z0 = np.mean(z[[0,2,4,6]]) - 70 # minus 70 because tracking points are on the top
 
     # calculate vectors to each point w.r.t. the new center
     I_vec = np.zeros((noPoints, 3))
@@ -58,9 +58,9 @@ def calculateFramePosition():
         I_vec[i, 1] = y[i] - y0
         I_vec[i, 2] = z[i] - z0
 
-    # point (4) is pointing in the positive +x direction
+    # point (9) is pointing in the positive +x direction
     # calculate angle between reference frame and body frame
-    alpha = np.arctan2(y[3]-y0, x[3]-x0)
+    alpha = np.arctan2(y[8]-y0, x[8]-x0)
     # print(alpha*180/np.pi)
 
     # transformation matrix, positive rotation around z-axis
@@ -82,15 +82,16 @@ def calculateFramePosition():
     Q_cy = (R_QI.dot(I_cy.T)).T
     Q_cz = (R_QI.dot(I_cz.T)).T
 
-    # fig = plt.figure()
-    # ax = Axes3D(fig)
-    # ax.plot3D(x0, y0, z0, 'x')
-    # ax.set_xlabel('x')
-    # ax.set_ylabel('y')
-    # ax.set_zlabel('z')
+    
 
     # plot something
     if False: 
+        fig = plt.figure()
+        ax = Axes3D(fig)
+        ax.plot3D(x0, y0, z0, 'x')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
         # plot connecting lines to frame
         if True:
             for i in range(noPoints):
@@ -131,8 +132,9 @@ def on_packet(packet):
 
     # only handle packets in a set interval
     global t_act
+    # tint = time.time() # calculate possible fps. average time ~1-2ms
     t = time.time()
-    if t > t_act + 0.03:  #  = 30ms
+    if t > t_act + 0.015:  #  = 15ms
         interval = t - t_act 
         t_act = t
         if QRTComponentType.Component3d in packet.components:
@@ -212,7 +214,11 @@ def on_packet(packet):
 
 
         Q_t_QP = -Q_t_PQ # redirect vector        
-        print("{},{}".format(Q_t_QP, euler))
+        print("{},{}".format(Q_t_QP, euler)) 
+        # print("[T]{}".format(time.time()-tint)) # TIMING: it takes 1-2ms to calculate
+        interval = time.time()
+
+
         
         # Qx0 = Q_t_QP[0]
         # Qy0 = Q_t_QP[1]

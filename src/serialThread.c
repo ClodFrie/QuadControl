@@ -21,14 +21,15 @@ void* serialThread(void* vptr) {
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
     // open serial port
-    int fd = openPort('A'-'0');
+    int fd = openPort('0'-'0');
     if (fd < 0) {
-        printf("[SERIAL] open port failed");
+        printf("[SERIAL] open port failed. Closing Application!\n");
         exit(1);
     }
     usleep(10000);
 
     printf("[SERIAL] ready to read\n");
+    
     char inLine[1024];
     while (1 /*fgets(inLine, sizeof(inLine), fd) != NULL*/) {
         // printf("%s",inLine); //DEBUG
@@ -51,6 +52,7 @@ void* serialThread(void* vptr) {
             double time, dist0, dist1, dist2, dist3, angle;
             sscanf(inLine, "%lfs\t%lf\t%lf\t%lf\t%lf\t%lf\n", &time, &Quadptr->IMUC.B_distance0,&Quadptr->IMUC.B_distance1, &Quadptr->IMUC.B_distance2, &Quadptr->IMUC.B_averageDistance, &Quadptr->IMUC.angle_yaw);
             pthread_mutex_unlock(&state_mutex);  // unlock mutex
+            // printf(inLine);
         }
     }
 

@@ -58,7 +58,7 @@ int sendCommand(int fd) {
     int tmpRec = 0;
     double endTime = get_time_ms() + MS_TIMEOUT;
     while (receivedBytes < sizeof(answer)) {
-        tmpRec = read(fd, answer + receivedBytes, sizeof(answer)-receivedBytes);  // read serial data
+        tmpRec = read(fd, answer + receivedBytes, sizeof(answer) - receivedBytes);  // read serial data
         receivedBytes += tmpRec;
         if (get_time_ms() > endTime) {
             return -1;
@@ -79,19 +79,27 @@ int requestData_ser(int fd) {
     char reqData[] = {'>', '*', '>', 'd'};
 
     int receivedBytes = 0;
-    int tmpRec = 0;
-    double endTime = get_time_ms() + MS_TIMEOUT;
+    double endTime = get_time_ms() + /*MS_TIMEOUT*/ 20;
     write(fd, reqData, sizeof(reqData));
     tcdrain(fd);
-    usleep(1000);
+
     unsigned char* rptr = (unsigned char*)&data;
 
     bzero(&data, sizeof(data));  // clear data
 
-    while (receivedBytes < sizeof(data) && get_time_ms() < endTime) {
-        tmpRec = read(fd, rptr + receivedBytes, FIFO_BUFFER_SIZE);  // read serial data
-        receivedBytes += tmpRec;
+    while (receivedBytes < sizeof(data)) {
+        if (sizeof(data) - receivedBytes > FIFO_BUFFER_SIZE) {
+            receivedBytes += read(fd, rptr + receivedBytes, FIFO_BUFFER_SIZE);  // read serial data
+        } else {
+            receivedBytes += read(fd, rptr + receivedBytes, sizeof(data) - receivedBytes);  // read serial data
+        }
+        if (get_time_ms() > endTime) {
+            printf("[DATA] read timed out\n");
+            return 1;
+        }
     }
+    usleep(1000);
+    // tcflush(fd,TCIOFLUSH);
 
     unsigned char crc = crc8(0, (unsigned char*)(&data), sizeof(data) - 1);
     if (data.CRC != crc) {
@@ -105,7 +113,7 @@ int sendParameters(int fd) {
     char sendParam[] = {'>', '*', '>', 'p'};
     write(fd, sendParam, sizeof(sendParam));
     tcdrain(fd);
-    
+
     ctrl.CRC = crc8(0, (unsigned char*)(&params), sizeof(params) - 1);
     double endTime = get_time_ms() + MS_TIMEOUT;
 
@@ -159,7 +167,7 @@ void configurePort(int fd) {
 
     bzero(&port_settings, sizeof(port_settings));  // empty port_settings
 
-    port_settings.c_cflag = B57600 /*| CRTSCTS*/ | CS8 | CLOCAL | CREAD;
+    port_settings.c_cflag = B115200 /*| CRTSCTS*/ | CS8 | CLOCAL | CREAD;
     port_settings.c_iflag = IGNPAR;
     port_settings.c_oflag = 0;
     /*set input mode (non-canonical, no echo, ...)*/

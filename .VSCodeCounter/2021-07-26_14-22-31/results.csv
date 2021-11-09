@@ -1,0 +1,30 @@
+"filename", "language", "Shell Script", "Python", "Markdown", "C", "C++", "comment", "blank", "total"
+"/home/richard/remote_raspi/Desktop/QuadControl/Calculate_Points+RealTime.py", "Python", 0, 107, 0, 0, 0, 96, 57, 260
+"/home/richard/remote_raspi/Desktop/QuadControl/README.md", "Markdown", 0, 0, 1, 0, 0, 0, 0, 1
+"/home/richard/remote_raspi/Desktop/QuadControl/include/FTDI_helpers.h", "C++", 0, 0, 0, 0, 8, 0, 4, 12
+"/home/richard/remote_raspi/Desktop/QuadControl/include/MPC.h", "C++", 0, 0, 0, 0, 11, 2, 6, 19
+"/home/richard/remote_raspi/Desktop/QuadControl/include/crc.h", "C++", 0, 0, 0, 0, 5, 0, 3, 8
+"/home/richard/remote_raspi/Desktop/QuadControl/include/kalman.h", "C++", 0, 0, 0, 0, 11, 2, 6, 19
+"/home/richard/remote_raspi/Desktop/QuadControl/include/missionPlanning.h", "C++", 0, 0, 0, 0, 11, 0, 7, 18
+"/home/richard/remote_raspi/Desktop/QuadControl/include/pid.h", "C++", 0, 0, 0, 0, 15, 0, 5, 20
+"/home/richard/remote_raspi/Desktop/QuadControl/include/planTrajectory.h", "C++", 0, 0, 0, 0, 4, 0, 2, 6
+"/home/richard/remote_raspi/Desktop/QuadControl/include/quad.h", "C++", 0, 0, 0, 0, 30, 11, 14, 55
+"/home/richard/remote_raspi/Desktop/QuadControl/include/serial_helpers.h", "C++", 0, 0, 0, 0, 8, 0, 4, 12
+"/home/richard/remote_raspi/Desktop/QuadControl/include/threads.h", "C++", 0, 0, 0, 0, 10, 0, 3, 13
+"/home/richard/remote_raspi/Desktop/QuadControl/include/time_helper.h", "C++", 0, 0, 0, 0, 5, 0, 2, 7
+"/home/richard/remote_raspi/Desktop/QuadControl/rigidtrans.py", "Python", 0, 30, 0, 0, 0, 11, 17, 58
+"/home/richard/remote_raspi/Desktop/QuadControl/src/FTDI_helpers.c", "C", 0, 0, 0, 209, 0, 10, 27, 246
+"/home/richard/remote_raspi/Desktop/QuadControl/src/cameraThread.c", "C", 0, 0, 0, 30, 0, 4, 8, 42
+"/home/richard/remote_raspi/Desktop/QuadControl/src/crc.c", "C", 0, 0, 0, 59, 0, 22, 8, 89
+"/home/richard/remote_raspi/Desktop/QuadControl/src/ioThread.c", "C", 0, 0, 0, 205, 0, 40, 57, 302
+"/home/richard/remote_raspi/Desktop/QuadControl/src/logThread.c", "C", 0, 0, 0, 47, 0, 11, 15, 73
+"/home/richard/remote_raspi/Desktop/QuadControl/src/main.c", "C", 0, 0, 0, 27, 0, 10, 11, 48
+"/home/richard/remote_raspi/Desktop/QuadControl/src/missionPlanning.c", "C", 0, 0, 0, 144, 0, 38, 54, 236
+"/home/richard/remote_raspi/Desktop/QuadControl/src/pid.c", "C", 0, 0, 0, 40, 0, 13, 15, 68
+"/home/richard/remote_raspi/Desktop/QuadControl/src/pipeThread.c", "C", 0, 0, 0, 31, 0, 3, 7, 41
+"/home/richard/remote_raspi/Desktop/QuadControl/src/planTrajectory.c", "C", 0, 0, 0, 36, 0, 17, 16, 69
+"/home/richard/remote_raspi/Desktop/QuadControl/src/serialThread.c", "C", 0, 0, 0, 42, 0, 10, 10, 62
+"/home/richard/remote_raspi/Desktop/QuadControl/src/serial_helpers.c", "C", 0, 0, 0, 147, 0, 12, 23, 182
+"/home/richard/remote_raspi/Desktop/QuadControl/src/time_helper.c", "C", 0, 0, 0, 16, 0, 0, 3, 19
+"/home/richard/remote_raspi/Desktop/QuadControl/unload_drivers.sh", "Shell Script", 2, 0, 0, 0, 0, 1, 0, 3
+"Total", "-", 2, 137, 1, 1033, 118, 313, 384, 1988

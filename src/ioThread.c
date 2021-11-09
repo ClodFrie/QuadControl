@@ -53,25 +53,17 @@ void* ioThread(void* vptr) {
     struct QuadState* Quadptr = (struct QuadState*)vptr;
 
     // define starting state as INIT
-    state = IMUC_INIT;
+    state = INIT;
+    // state = IMUC_INIT;
 
     int fdSerial;
-#define SERIAL
-#ifdef SERIAL
-    fdSerial = openPort('A' - '0');  // TODO 'F'
+    FT_HANDLE ftHandle;
 
+    // openFTDI(&ftHandle);
+    fdSerial = openPort('0' - '0');  // TODO: 'F'
     if (fdSerial == -1) {
         return NULL;
     }
-#else
-    // create ftdi handle
-    FT_HANDLE ftHandle = NULL;
-
-    // open FTDI device
-    if (openFTDI(&ftHandle) < 0) {
-        return NULL;
-    }
-#endif
 
     // zero all variables
     bzero(&data, sizeof(data));
@@ -79,51 +71,43 @@ void* ioThread(void* vptr) {
     bzero(&params, sizeof(params));
 
     // initialize kalman filter
+    // TODO: get kalman filter going for ultrasonic measurements
     initKalman();
     printf("Kalman started\n");
 
     // initialize MPC
-    // initMPC();
+    initMPC();
 
     double t1 = get_time_ms();
     // write control parameters
-    setParams(0.007265, 0.008265 + 0.002, 0.004500, 0.0011250, 0, 0);
+    setParams(0.007265, 0.008265 + 0.004, 0.006500, 0.0011250, 0, 0);
 
-    // TODO: comment back in
-    // while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
-    //     ;  // make sure that parameters have been received
-    // }
-    // printf("[PARAM] received succesfully!\n");
+    while (/*sendParams(&ftHandle)*/ sendParameters(fdSerial) != 0) {
+        ;  // make sure that parameters have been received
+    }
+    printf("[PARAM] received succesfully!\n");
 
-    // while (sendCommand(fdSerial) != 0) {
-    //     ctrl.CRC = crc8(0, (unsigned char*)(&ctrl), sizeof(ctrl) - 1);
-    //     ; // send command once to reset all previous motor commands
-    // }
-    // printf("[CMD] reset succesfully!\n");
     fflush(0);
-    // while(1);
 
     // plotPath(t1);  // gnuplot
 
     double I_safeX0 = 0, I_safeY0 = 0;
-    double Ft_i[4] = {};
-    double xo[12] = {};
-
-    unsigned long int cnt = 0;
+    unsigned long cnt = 0;
 
     while (1) {  // do forever
 
-        // receive drone data
-        if (cnt % 20 == 0 || data.battery_voltage == 0) {  // every n-th time or when data was not received properly
-            requestData_ser(fdSerial);
-            // requestData(&ftHandle);
-        }
-        cnt++;
         if (pthread_mutex_lock(&state_mutex) == 0) {
             updateState(Quadptr);
             Quadptr->quadTime = get_time_ms();  // update time
             // release mutex
             pthread_mutex_unlock(&state_mutex);
+
+            // receive drone data
+            if (cnt % 5 == 0 || data.battery_voltage == 0) {  // every n-th time or when data was not received properly
+                requestData_ser(fdSerial);
+                // requestData(&ftHandle);
+            }
+            cnt++;
 
             // calculate desired movements
             printf("st: %d,", state);
@@ -139,23 +123,33 @@ void* ioThread(void* vptr) {
                         if (fabs(Quadptr->I_x - Quadptr->I_x_kal) < delta && fabs(Quadptr->I_y - Quadptr->I_y_kal) < delta) {
                             Quadptr->trajectory.I_x = Quadptr->I_x;
                             Quadptr->trajectory.I_y = Quadptr->I_y;
+                            Quadptr->trajectory.I_z = Quadptr->I_z;
                             I_safeX0 = Quadptr->I_x;
                             I_safeY0 = Quadptr->I_y;
 
-                            initPID(&pidx, 2.0, 0.2, 0.9, 6.20, get_time_ms());  // pidX
-                            initPID(&pidy, 2.3, 0.7, 1.1, 6.25, get_time_ms());  // pidY
+                            initPID(&pidx, 3.8, 0.9, 3.0, 8.20, get_time_ms());  // pidX
+                            initPID(&pidy, 3.8, 2.2, 3.0, 6.25, get_time_ms());  // pidY
 
-                            initPID(&pidz, 2.0, 2.2, 6.2, 10, get_time_ms());  // pidZ
+                            initPID(&pidz, 3.2, 1.5, 1.5, 20, get_time_ms());  // pidZ
 
                             state = IDLE;  // change active state to idle
                         }
                     }
                     break;
                 case IDLE:  // wait for some kind of start signal
-                    Quadptr->quadStartTime = get_time_ms();
+                    // send zero throttle
+                    bzero(&ctrl, sizeof(ctrl));
+                    ctrl.u_thrust = 0;
+                    ctrl.pitch_d = 0;
+                    ctrl.roll_d = 0;
+                    ctrl.yaw_d = data.angle_yaw;
 
-                    // currently there is no idle state
-                    state = TAKEOFF;
+                    // flip the analog switch "start/land"
+                    if (data.channel[2] > 10) {
+                        state = LEMNISCATE_TRAJECTORY;
+                        // state = TAKEOFF;
+                        Quadptr->quadStartTime = get_time_ms();
+                    }
 
                     break;
                 case TAKEOFF:
@@ -163,7 +157,7 @@ void* ioThread(void* vptr) {
                     // currently there is no takeoff state
                     // state = HOVER;
 
-                    // pathMPC(Q_safeZ, Q_safeX, Q_safeY,I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
+                    // pathMPC(I_safeX0, I_safeY0, Quadptr, &ctrl, get_time_ms());
                     // pathPID(I_safeZ,I_safeX,I_safeY, Quadptr, &ctrl, get_time_ms(), Ft_i);
                     calculateHover(I_safeX0, I_safeY0, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz);
                     break;
@@ -172,14 +166,26 @@ void* ioThread(void* vptr) {
                     break;
                 case RECTANGULAR_TRAJECTORY:
                     break;
-                case IMUC_INIT:
-                    initPID(&pidx, 2.0, 0.2, 0.9, 6.20, get_time_ms());  // pidX
-                    initPID(&pidy, 2.3, 0.7, 1.1, 6.25, get_time_ms());  // pidY
-
-                    initPID(&pidz, 2.0, 2.2, 6.2, 10, get_time_ms());  // pidZ
+                case LEMNISCATE_TRAJECTORY:
+                    lemniscateHover(I_safeX0, I_safeY0, 7 /*degrees*/, Quadptr, &ctrl, &pidx, &pidy, &pidz);
                     break;
+                case IMUC_INIT:
+                    ctrl.u_thrust = 0;
+                    ctrl.pitch_d = 0;
+                    ctrl.roll_d = 0;
+                    ctrl.yaw_d = data.angle_yaw;
+
+                    if (data.channel[2] > 10) {
+                        initPID(&pidx, 2.5, 0.45, 0.05, 1.00, get_time_ms());  // pidX
+                        initPID(&pidy, 2.5, 0.75, 0.05, 1.00, get_time_ms());  // pidY
+
+                        initPID(&pidz, 0.1, 0, 0, 10, get_time_ms());  // pidZ
+                        state = IMUC_HOVER;
+                    }
+                    break;
+
                 case IMUC_HOVER:
-                    calculateIMUCHover(get_time_ms(), 0.3, Quadptr, 7, &pidz);
+                    calculateIMUCHover(get_time_ms(), 0.3, Quadptr, 5, &pidx, &pidy, &pidz);
                     break;
                 case IMUC_ONLINE_TRAJECTORY:
                     break;
@@ -189,17 +195,14 @@ void* ioThread(void* vptr) {
             }
 
             // write control commands - only if new data has been generated
-            // sendCmd(&ftHandle);
             sendCommand(fdSerial);
-            Quadptr->newDataAvailable = 1;      // set data_available flag for logging // TODO find correct place for this
+            // sendCmd(&ftHandle);
+
+            Quadptr->newDataAvailable = 1;  //TODO: set data_available flag for logging // TODO find correct place for this
         }
     }
 
     // free resources
-    // if (ftHandle != NULL) {
-    //     FT_Close(ftHandle);
-    //     fclose(fd);
-    // }
     if (fdSerial != -1) {
         close(fdSerial);
     }
@@ -263,8 +266,6 @@ int updateState(struct QuadState* Quad) {
     Quad->I_yaw_dot_kal = states[21];
     Quad->I_yaw_ddot_kal = states[22];
     Quad->I_yaw_dddot_kal = states[23];
-
-    // TODO: kalman should already be calculating system speeds when using body fixed frame (position --> velocity)
 
     // Quad->system_speeds[0] = cos(q5) * cos(q6) * Quad->I_x_dot_kal - cos(q5) * sin(q6) * Quad->I_y_dot_kal + sin(q5) * Quad->I_z_dot_kal;
     // Quad->system_speeds[1] = (-sin(q5) * sin(q6) * Quad->I_y_dot_kal + cos(q6) * sin(q5) * Quad->I_x_dot_kal - Quad->I_z_dot_kal * cos(q5)) * sin(q4) - cos(q4) * (sin(q6) * Quad->I_x_dot_kal + cos(q6) * Quad->I_y_dot_kal);

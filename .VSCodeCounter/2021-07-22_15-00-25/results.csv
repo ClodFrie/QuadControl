@@ -1,0 +1,30 @@
+"filename", "language", "Python", "C++", "C", "Shell Script", "Markdown", "comment", "blank", "total"
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/Calculate_Points+RealTime.py", "Python", 106, 0, 0, 0, 0, 94, 55, 255
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/README.md", "Markdown", 0, 0, 0, 0, 1, 0, 0, 1
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/FTDI_helpers.h", "C++", 0, 8, 0, 0, 0, 0, 4, 12
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/MPC.h", "C++", 0, 11, 0, 0, 0, 2, 6, 19
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/crc.h", "C++", 0, 5, 0, 0, 0, 0, 3, 8
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/kalman.h", "C++", 0, 11, 0, 0, 0, 2, 6, 19
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/missionPlanning.h", "C++", 0, 11, 0, 0, 0, 0, 7, 18
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/pid.h", "C++", 0, 15, 0, 0, 0, 0, 5, 20
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/planTrajectory.h", "C++", 0, 4, 0, 0, 0, 0, 2, 6
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/quad.h", "C++", 0, 23, 0, 0, 0, 11, 12, 46
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/serial_helpers.h", "C++", 0, 8, 0, 0, 0, 0, 4, 12
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/threads.h", "C++", 0, 10, 0, 0, 0, 0, 3, 13
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/include/time_helper.h", "C++", 0, 5, 0, 0, 0, 0, 2, 7
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/rigidtrans.py", "Python", 30, 0, 0, 0, 0, 11, 17, 58
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/FTDI_helpers.c", "C", 0, 0, 203, 0, 0, 15, 25, 243
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/cameraThread.c", "C", 0, 0, 30, 0, 0, 3, 7, 40
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/crc.c", "C", 0, 0, 59, 0, 0, 22, 8, 89
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/ioThread.c", "C", 0, 0, 213, 0, 0, 56, 63, 332
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/logThread.c", "C", 0, 0, 43, 0, 0, 14, 15, 72
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/main.c", "C", 0, 0, 23, 0, 0, 14, 13, 50
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/missionPlanning.c", "C", 0, 0, 126, 0, 0, 76, 47, 249
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/pid.c", "C", 0, 0, 40, 0, 0, 13, 15, 68
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/pipeThread.c", "C", 0, 0, 31, 0, 0, 3, 7, 41
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/planTrajectory.c", "C", 0, 0, 36, 0, 0, 17, 16, 69
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/serialThread.c", "C", 0, 0, 42, 0, 0, 10, 9, 61
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/serial_helpers.c", "C", 0, 0, 140, 0, 0, 11, 22, 173
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/src/time_helper.c", "C", 0, 0, 16, 0, 0, 0, 3, 19
+"/home/richard/Dropbox/Studium/Masterarbeit - Institut für Robotik/C_++-Applications/QuadControl/unload_drivers.sh", "Shell Script", 0, 0, 0, 2, 0, 1, 0, 3
+"Total", "-", 136, 111, 1002, 2, 1, 375, 376, 2003
